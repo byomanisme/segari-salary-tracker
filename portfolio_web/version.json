@@ -1,0 +1,15 @@
+{
+  "version": "1.3.0",
+  "buildNumber": 11,
+  "releaseDate": "30 Agustus 2026",
+  "title": "Pembaruan Gajiku Segari v1.3.0 (Build 11)",
+  "changelog": [
+    "📅 Siklus Bulanan Target SKU & Denda: Reset otomatis di bulan baru dengan navigator bulan & log riwayat detail.",
+    "🕒 Input Jam Kerja Rapi & Lengkap: Preset resmi Excel Segari (termasuk gap istirahat 1 jam: 09:00-18:00 & 19:00-22:00) & tanpa input huruf manual.",
+    "📄 Background Doodle Grocery di PDF: Slip gaji PDF semakin elegan dengan watermark doodle sembako Segari.",
+    "📲 Format WhatsApp Rapi & Terstruktur: Rekap kehadiran, lembur, komisi SKU, dan denda semakin bersih.",
+    "🛠️ Perbaikan Multitasking Android: Bebas duplikasi jendela ganda di menu Recent Apps."
+  ],
+  "downloadUrl": "https://lukmanhakim.id/apk/SegariSalaryTracker-v1.3.0.apk",
+  "isMandatory": false
+}

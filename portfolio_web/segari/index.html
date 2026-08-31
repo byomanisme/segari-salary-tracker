@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sesaat Apps - Segari Daily Worker Salary & SKU Tracker | by Lukman Hakim</title>
+    <meta name="description" content="Aplikasi pencatat absensi, kalkulator gaji harian, target komisi SKU Severity 1-3, dan slip gaji PDF untuk Daily Worker Segari.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="../style.css">
+    <style>
+        .app-hero {
+            padding: 140px 0 80px;
+            text-align: center;
+        }
+        .app-badge-main {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            border-radius: 30px;
+            color: var(--primary);
+            font-size: 0.88rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+        }
+        .app-hero-title {
+            font-size: 3.2rem;
+            font-weight: 800;
+            color: #FFFFFF;
+            max-width: 800px;
+            margin: 0 auto 20px;
+            line-height: 1.2;
+        }
+        .app-hero-desc {
+            font-size: 1.15rem;
+            color: var(--text-muted);
+            max-width: 650px;
+            margin: 0 auto 36px;
+        }
+        .download-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-highlight);
+            border-radius: var(--radius-xl);
+            padding: 36px;
+            max-width: 600px;
+            margin: 0 auto 60px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+        .download-btn-large {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            background: linear-gradient(135deg, #10B981, #059669);
+            color: #FFFFFF;
+            padding: 18px 28px;
+            border-radius: var(--radius-md);
+            font-size: 1.15rem;
+            font-weight: 800;
+            text-decoration: none;
+            box-shadow: 0 8px 30px rgba(16, 185, 129, 0.4);
+            transition: var(--transition);
+        }
+        .download-btn-large:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 35px rgba(16, 185, 129, 0.6);
+        }
+        .file-meta {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 14px;
+            color: var(--text-dim);
+            font-size: 0.82rem;
+            font-family: var(--font-code);
+        }
+        .features-grid-segari {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-top: 40px;
+        }
+        .f-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 28px;
+            text-align: left;
+            transition: var(--transition);
+        }
+        .f-card:hover {
+            border-color: var(--border-highlight);
+            transform: translateY(-3px);
+        }
+        .f-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: var(--radius-md);
+            background: rgba(16, 185, 129, 0.12);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            margin-bottom: 16px;
+        }
+        .f-card h3 {
+            color: #FFFFFF;
+            font-size: 1.15rem;
+            margin-bottom: 10px;
+        }
+        .f-card p {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        .guide-box {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 30px;
+            max-width: 800px;
+            margin: 60px auto 0;
+            text-align: left;
+        }
+        .guide-box h3 {
+            color: #FFFFFF;
+            font-size: 1.25rem;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .guide-list {
+            padding-left: 20px;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.8;
+        }
+        .back-nav {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 24px;
+            transition: var(--transition);
+        }
+        .back-nav:hover {
+            color: var(--primary);
+        }
+        @media (max-width: 992px) {
+            .features-grid-segari {
+                grid-template-columns: 1fr;
+            }
+            .app-hero-title {
+                font-size: 2.3rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background Glow Blobs -->
+    <div class="glow-bg glow-1"></div>
+    <div class="glow-bg glow-2"></div>
+
+    <!-- Top Bar -->
+    <header class="navbar">
+        <div class="container nav-container">
+            <a href="../" class="brand-logo">
+                <span class="logo-bracket">&lt;</span>Lukman<span class="logo-accent">.Hakim</span><span class="logo-bracket">/&gt;</span>
+            </a>
+            <a href="../" class="nav-btn-highlight">
+                <i class="fa-solid fa-arrow-left"></i> Kembali ke Portofolio
+            </a>
+        </div>
+    </header>
+
+    <!-- App Hero & Download -->
+    <section class="app-hero">
+        <div class="container">
+            <a href="../" class="back-nav"><i class="fa-solid fa-arrow-left"></i> Portofolio Utama Lukman Hakim</a>
+            <br>
+            <div class="app-badge-main">
+                <i class="fa-solid fa-leaf"></i> SESAAT APPS v1.3.0 (PRODUCTION RELEASE)
+            </div>
+            <h1 class="app-hero-title">
+                Segari Daily Worker <span class="gradient-text">Salary & SKU Tracker</span>
+            </h1>
+            <p class="app-hero-desc">
+                Solusi cerdas bagi rekan kerja harian Segari untuk menghitung upah shift secara akurat, kustomisasi skin maskot, visualisasi jadwal sesuai warna Excel Segari, memantau target komisi SKU Severity 1-3, mencetak slip gaji PDF, dan integrasi WhatsApp.
+            </p>
+
+            <!-- Download Action Card -->
+            <div class="download-box">
+                <a href="../apk/SegariSalaryTracker-v1.3.0.apk" class="download-btn-large" download="SegariSalaryTracker-v1.3.0.apk">
+                    <i class="fa-brands fa-android fa-2x"></i>
+                    <div style="text-align: left;">
+                        <div>Download APK Langsung</div>
+                        <div style="font-size: 0.75rem; opacity: 0.85; font-weight: 500;">Versi Resmi v1.3.0 • Android 6.0+</div>
+                    </div>
+                </a>
+                <div class="file-meta">
+                    <span><i class="fa-solid fa-file-code"></i> Ukuran: 20.2 MB</span>
+                    <span>•</span>
+                    <span><i class="fa-solid fa-shield-halved"></i> Bebas Iklan</span>
+                    <span>•</span>
+                    <span><i class="fa-solid fa-bolt"></i> In-App OTA Update</span>
+                </div>
+            </div>
+
+            <!-- Features Grid -->
+            <div class="section-header">
+                <span class="section-subtitle">FITUR UNGGULAN v1.3.0</span>
+                <h2 class="section-title">Semua Kebutuhan Kerja dalam Satu Aplikasi</h2>
+            </div>
+
+            <div class="features-grid-segari">
+                <div class="f-card">
+                    <div class="f-icon" style="background: rgba(245, 158, 11, 0.15); color: #F59E0B;"><i class="fa-solid fa-masks-theater"></i></div>
+                    <h3>4 Maskot Segari Presisi (Build 5)</h3>
+                    <p>Pilihan maskot berburu sembako & buah segar: Ular Hijau 🐍, Ulat Sayur 🐛, Kucing Gudang 🐱 (1 Kotak), dan Ayam Peternak 🐔 (1 Kotak)!</p>
+                </div>
+                <div class="f-card">
+                    <div class="f-icon" style="background: rgba(239, 68, 68, 0.15); color: #EF4444;"><i class="fa-solid fa-palette"></i></div>
+                    <h3>Skema Warna Shift Excel Segari</h3>
+                    <p>Visualisasi kalender presisi 100% mengikuti spreadsheet jadwal Segari: 🔴 <strong>Merah (OFF)</strong>, 🟣 <strong>Ungu (MP3H)</strong>, 🟠 <strong>Oranye (Siang)</strong>, 🟡 <strong>Kuning (Subuh)</strong>, 🔷 <strong>Cyan (Pagi)</strong>.</p>
+                </div>
+                <div class="f-card">
+                    <div class="f-icon"><i class="fa-solid fa-bullseye"></i></div>
+                    <h3>Target SKU Multi-Tier & Edit Komisi</h3>
+                    <p>Mendukung 3 tier pencapaian: Severity 1 (13.500 SKU / Rp 400rb), Severity 2 (15.500 SKU / Rp 500rb), dan Severity 3 (17.500 SKU / Rp 600rb) dengan fitur edit fleksibel.</p>
+                </div>
+                <div class="f-card">
+                    <div class="f-icon"><i class="fa-solid fa-clock"></i></div>
+                    <h3>Input Jam Kerja Dial & Preset</h3>
+                    <p>Putar jarum jam interaktif untuk memilih jam masuk & pulang, atau gunakan preset 1-klik untuk shift Reguler, MP3H, dan lembur Segari.</p>
+                </div>
+                <div class="f-card">
+                    <div class="f-icon"><i class="fa-solid fa-user-clock"></i></div>
+                    <h3>Aturan Lembur & Double MP3H</h3>
+                    <p>Kombinasi fleksibel: Shift Reguler + Lembur 1x MP3H (11 Jam / Rp 170.000) atau Double MP3H (6 Jam / Rp 100.000) sesuai standar operasional Segari.</p>
+                </div>
+                <div class="f-card">
+                    <div class="f-icon"><i class="fa-solid fa-file-pdf"></i></div>
+                    <h3>Cetak Slip Gaji PDF & WhatsApp</h3>
+                    <p>Ekspor slip gaji resmi berformat PDF dan format pesan WhatsApp rapi dengan rincian kehadiran harian, komisi SKU, potongan denda QC, dan tanggal gajian.</p>
+                </div>
+            </div>
+
+            <!-- Install Guide -->
+            <div class="guide-box">
+                <h3><i class="fa-solid fa-circle-question"></i> Cara Memasang Aplikasi di HP Android:</h3>
+                <ol class="guide-list">
+                    <li>Klik tombol hijau <strong>"Download APK Langsung"</strong> di atas.</li>
+                    <li>Setelah file <code>SegariSalaryTracker-v1.3.0.apk</code> selesai diunduh, buka file tersebut di HP Anda.</li>
+                    <li>Jika muncul peringatan <em>"Izinkan instalasi dari sumber ini"</em>, aktifkan izin pada pengaturan browser HP Anda.</li>
+                    <li>Pilih <strong>"Install / Update"</strong>. Aplikasi langsung siap digunakan!</li>
+                    <li><em>Catatan:</em> Jika Anda sudah menginstal versi sebelumnya, aplikasi akan langsung diperbarui tanpa menghapus data absensi lama Anda.</li>
+                </ol>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container footer-container">
+            <div class="footer-left">
+                <span class="footer-logo">&lt;Lukman.Hakim/&gt;</span>
+                <p>&copy; 2026 Sesaat Apps by Lukman Hakim. Seluruh hak cipta dilindungi.</p>
+            </div>
+            <div class="footer-right">
+                <a href="../">Kembali ke Portofolio Utama <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>

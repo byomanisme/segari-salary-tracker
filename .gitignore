@@ -1,0 +1,40 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.pyo
+__pycache__/
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code & Antigravity
+.vscode/
+.system_generated/
+
+# Flutter / Dart build artifacts
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.packages
+**/pubspec.lock
+
+# Android Gradle build
+**/.gradle/
+**/local.properties
+**/gradlew
+**/gradlew.bat
+
+# Large APKs & Temp binaries
+*.apk
+portfolio_web/apk/*.apk
