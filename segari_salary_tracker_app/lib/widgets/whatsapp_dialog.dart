@@ -7,11 +7,12 @@ import '../models/penalty_model.dart';
 import '../models/sku_entry_model.dart';
 import '../models/user_settings.dart';
 
-class WhatsAppDialog extends StatelessWidget {
+class WhatsAppDialog extends StatefulWidget {
   final UserSettings settings;
   final List<AttendanceRecord> records;
   final List<ComplaintPenalty> penalties;
   final List<SkuEntry> skuEntries;
+  final String? initialCycleKey;
 
   const WhatsAppDialog({
     Key? key,
@@ -19,7 +20,47 @@ class WhatsAppDialog extends StatelessWidget {
     required this.records,
     this.penalties = const [],
     this.skuEntries = const [],
+    this.initialCycleKey,
   }) : super(key: key);
+
+  @override
+  State<WhatsAppDialog> createState() => _WhatsAppDialogState();
+}
+
+class _WhatsAppDialogState extends State<WhatsAppDialog> {
+  late String _selectedCycleKey;
+
+  static const List<String> _monthNames = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _selectedCycleKey = widget.initialCycleKey ?? '${now.year}-${now.month.toString().padLeft(2, '0')}';
+  }
+
+  void _shiftMonth(int offset) {
+    final parts = _selectedCycleKey.split('-');
+    if (parts.length < 2) return;
+    int year = int.parse(parts[0]);
+    int month = int.parse(parts[1]);
+
+    month += offset;
+    if (month > 12) {
+      month = 1;
+      year += 1;
+    } else if (month < 1) {
+      month = 12;
+      year -= 1;
+    }
+
+    setState(() {
+      _selectedCycleKey = '$year-${month.toString().padLeft(2, '0')}';
+    });
+  }
 
   String _formatCurrency(num amount) {
     final format = NumberFormat.currency(
@@ -31,6 +72,22 @@ class WhatsAppDialog extends StatelessWidget {
   }
 
   String _generateWhatsAppText() {
+    final parts = _selectedCycleKey.split('-');
+    final int year = parts.isNotEmpty ? (int.tryParse(parts[0]) ?? 2026) : 2026;
+    final int month = parts.length > 1 ? (int.tryParse(parts[1]) ?? 9) : 9;
+
+    final String currentMonthName = _monthNames[month - 1];
+    final int lastDay = DateTime(year, month + 1, 0).day;
+
+    final DateTime nextPayday = DateTime(year, month + 1, widget.settings.paydayDay);
+    final String nextPaydayMonthName = _monthNames[nextPayday.month - 1];
+    final String paydayFormatted = '${nextPayday.day.toString().padLeft(2, '0')} $nextPaydayMonthName ${nextPayday.year}';
+
+    // 1. Filter data by selected month
+    final monthRecords = widget.records.where((r) => r.date.startsWith(_selectedCycleKey)).toList();
+    final monthSkuEntries = widget.skuEntries.where((e) => e.date.startsWith(_selectedCycleKey)).toList();
+    final monthPenalties = widget.penalties.where((p) => p.date.startsWith(_selectedCycleKey)).toList();
+
     int shiftSalary = 0;
     int regulerCount = 0;
     int mp3Count = 0;
@@ -38,7 +95,7 @@ class WhatsAppDialog extends StatelessWidget {
     int trainingCount = 0;
     int totalSessions = 0;
 
-    for (final rec in records) {
+    for (final rec in monthRecords) {
       shiftSalary += rec.rate;
       if (rec.type == 'reguler') {
         regulerCount++;
@@ -63,55 +120,42 @@ class WhatsAppDialog extends StatelessWidget {
     }
 
     int totalSku = 0;
-    for (final e in skuEntries) {
+    for (final e in monthSkuEntries) {
       totalSku += e.count;
     }
-    final int skuBonus = settings.getBonusForSku(totalSku);
-    final String severityLabel = settings.getSeverityTierLabel(totalSku);
+    final int skuBonus = widget.settings.getBonusForSku(totalSku);
+    final String severityLabel = widget.settings.getSeverityTierLabel(totalSku);
 
     int totalPenalty = 0;
-    for (final p in penalties) {
+    for (final p in monthPenalties) {
       totalPenalty += p.amount;
     }
 
     final int netSalary = (shiftSalary + skuBonus - totalPenalty).clamp(0, 999999999);
 
-    DateTime refDate = DateTime(2026, 8, 1);
-    if (records.isNotEmpty) {
-      final parsed = DateTime.tryParse(records.first.date);
-      if (parsed != null) refDate = parsed;
-    }
-
-    final monthNames = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ];
-    final int lastDay = DateTime(refDate.year, refDate.month + 1, 0).day;
-    final String currentMonth = monthNames[refDate.month - 1];
-
-    final DateTime nextPayday = DateTime(refDate.year, refDate.month + 1, settings.paydayDay);
-    final String nextPaydayMonthName = monthNames[nextPayday.month - 1];
-    final String paydayFormatted = '${nextPayday.day.toString().padLeft(2, '0')} $nextPaydayMonthName ${nextPayday.year}';
-
     final buffer = StringBuffer();
     buffer.writeln('*REKAPITULASI ABSENSI & ESTIMASI GAJI SEGARI*');
     buffer.writeln('_(Sesaat Apps - Segari Salary Tracker)_');
     buffer.writeln('━━━━━━━━━━━━━━━━━━━━━━');
-    buffer.writeln('👤 *Nama:* ${settings.name}');
-    buffer.writeln('🆔 *ID DW:* ${settings.empId}');
-    buffer.writeln('📅 *Periode Hitung:* 01 $currentMonth - $lastDay $currentMonth ${refDate.year}');
-    buffer.writeln('🏦 *Jadwal Gajian:* Tanggal ${settings.paydayDay} ($paydayFormatted)');
+    buffer.writeln('👤 *Nama:* ${widget.settings.name}');
+    buffer.writeln('🆔 *ID DW:* ${widget.settings.empId}');
+    buffer.writeln('📅 *Periode Hitung:* 01 $currentMonthName - $lastDay $currentMonthName $year');
+    buffer.writeln('🏦 *Jadwal Gajian:* Tanggal ${widget.settings.paydayDay} ($paydayFormatted)');
     buffer.writeln('━━━━━━━━━━━━━━━━━━━━━━\n');
     buffer.writeln('📋 *RINCIAN KEHADIRAN:*');
 
-    for (var i = 0; i < records.length; i++) {
-      final rec = records[i];
-      final typeDisplay = rec.typeLabel.isNotEmpty ? rec.typeLabel : rec.type.toUpperCase();
-      final nominal = _formatCurrency(rec.rate);
-      final jam = (rec.shiftHours.isNotEmpty && rec.shiftHours != '-') ? ' (${rec.shiftHours})' : '';
-      final notes = rec.notes.isNotEmpty ? ' - _${rec.notes}_' : '';
+    if (monthRecords.isEmpty) {
+      buffer.writeln('_(Belum ada data kehadiran pada bulan $currentMonthName $year)_\n');
+    } else {
+      for (var i = 0; i < monthRecords.length; i++) {
+        final rec = monthRecords[i];
+        final typeDisplay = rec.typeLabel.isNotEmpty ? rec.typeLabel : rec.type.toUpperCase();
+        final nominal = _formatCurrency(rec.rate);
+        final jam = (rec.shiftHours.isNotEmpty && rec.shiftHours != '-') ? ' (${rec.shiftHours})' : '';
+        final notes = rec.notes.isNotEmpty ? ' - _${rec.notes}_' : '';
 
-      buffer.writeln('${i + 1}. *${rec.date}* (${rec.dayName}): $typeDisplay$jam 👉 *$nominal*$notes');
+        buffer.writeln('${i + 1}. *${rec.date}* (${rec.dayName}): $typeDisplay$jam 👉 *$nominal*$notes');
+      }
     }
 
     buffer.writeln('\n━━━━━━━━━━━━━━━━━━━━━━');
@@ -130,13 +174,13 @@ class WhatsAppDialog extends StatelessWidget {
       if (skuBonus > 0) {
         buffer.writeln('• Bonus Komisi: *+ ${_formatCurrency(skuBonus)}* (Tercapai 🎉)');
       } else {
-        buffer.writeln('• Bonus Komisi: *Rp 0* (Kurang ${settings.severity1Target - totalSku} SKU lagi menuju Severity 1)');
+        buffer.writeln('• Bonus Komisi: *Rp 0* (Kurang ${widget.settings.severity1Target - totalSku} SKU lagi menuju Severity 1)');
       }
     }
 
-    if (penalties.isNotEmpty) {
+    if (monthPenalties.isNotEmpty) {
       buffer.writeln('\n⚠️ *POTONGAN DENDA KOMPLAIN:*');
-      for (final p in penalties) {
+      for (final p in monthPenalties) {
         buffer.writeln('• ${p.date} - ${p.typeLabel}: *- ${_formatCurrency(p.amount)}* ${p.notes.isNotEmpty ? "(${p.notes})" : ""}');
       }
       buffer.writeln('• Total Denda: *- ${_formatCurrency(totalPenalty)}*');
@@ -174,7 +218,6 @@ class WhatsAppDialog extends StatelessWidget {
     }
 
     if (!launched) {
-      // Force launch web intent
       try {
         await launchUrl(
           Uri.parse('https://api.whatsapp.com/send?text=$encoded'),
@@ -201,40 +244,117 @@ class WhatsAppDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final parts = _selectedCycleKey.split('-');
+    final int year = parts.isNotEmpty ? (int.tryParse(parts[0]) ?? 2026) : 2026;
+    final int month = parts.length > 1 ? (int.tryParse(parts[1]) ?? 9) : 9;
+    final String currentMonthName = _monthNames[month - 1];
+
     final text = _generateWhatsAppText();
 
     return AlertDialog(
       backgroundColor: const Color(0xFF1E293B),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Row(
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Icon(Icons.send_rounded, color: Color(0xFF25D366), size: 22),
-          SizedBox(width: 8),
-          Text(
-            'Rekapitulasi WhatsApp',
-            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          const Row(
+            children: [
+              Icon(Icons.send_rounded, color: Color(0xFF25D366), size: 22),
+              SizedBox(width: 8),
+              Text(
+                'Rekapitulasi WhatsApp',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, color: Color(0xFF94A3B8), size: 18),
+            onPressed: () => Navigator.pop(context),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
           ),
         ],
       ),
       content: SizedBox(
         width: double.maxFinite,
         child: SingleChildScrollView(
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0F172A),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.white.withOpacity(0.08)),
-            ),
-            child: SelectableText(
-              text,
-              style: const TextStyle(
-                color: Color(0xFFCBD5E1),
-                fontSize: 11.5,
-                fontFamily: 'monospace',
-                height: 1.4,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Month Selector Bar (< September 2026 >)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF25D366).withOpacity(0.3)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    InkWell(
+                      onTap: () => _shiftMonth(-1),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E293B),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(Icons.chevron_left, color: Color(0xFF25D366), size: 18),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        const Icon(Icons.calendar_month, color: Color(0xFF25D366), size: 15),
+                        const SizedBox(width: 6),
+                        Text(
+                          '$currentMonthName $year',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                    InkWell(
+                      onTap: () => _shiftMonth(1),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E293B),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(Icons.chevron_right, color: Color(0xFF25D366), size: 18),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+
+              const SizedBox(height: 10),
+
+              // Preview Text Box
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white.withOpacity(0.08)),
+                ),
+                child: SelectableText(
+                  text,
+                  style: const TextStyle(
+                    color: Color(0xFFCBD5E1),
+                    fontSize: 11.5,
+                    fontFamily: 'monospace',
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

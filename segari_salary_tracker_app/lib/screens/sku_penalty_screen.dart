@@ -238,7 +238,11 @@ class _SkuPenaltyScreenState extends State<SkuPenaltyScreen> {
               onAddSku: () {
                 showDialog(
                   context: context,
-                  builder: (_) => AddSkuDialog(onSave: widget.onAddSku),
+                  builder: (_) => AddSkuDialog(
+                    onSave: widget.onAddSku,
+                    existingSkuEntries: widget.skuEntries,
+                    activeCycleKey: _activeCycleKey,
+                  ),
                 );
               },
               onDeleteSku: widget.onDeleteSku,

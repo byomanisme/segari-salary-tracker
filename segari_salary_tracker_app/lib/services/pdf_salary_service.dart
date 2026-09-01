@@ -23,6 +23,7 @@ class PdfSalaryService {
     required List<AttendanceRecord> records,
     required List<ComplaintPenalty> penalties,
     required List<SkuEntry> skuEntries,
+    String? cycleKey,
   }) async {
     final pdf = pw.Document();
 
@@ -33,6 +34,29 @@ class PdfSalaryService {
       doodleImage = pw.MemoryImage(doodleData.buffer.asUint8List());
     } catch (_) {}
 
+    final now = DateTime.now();
+    final activeKey = cycleKey ?? '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    final parts = activeKey.split('-');
+    final int year = parts.isNotEmpty ? (int.tryParse(parts[0]) ?? now.year) : now.year;
+    final int month = parts.length > 1 ? (int.tryParse(parts[1]) ?? now.month) : now.month;
+
+    final monthNames = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    final int lastDayOfMonth = DateTime(year, month + 1, 0).day;
+    final String currentMonthName = monthNames[month - 1];
+
+    final DateTime nextPayday = DateTime(year, month + 1, settings.paydayDay);
+    final String nextPaydayMonthName = monthNames[nextPayday.month - 1];
+    final String paydayFormatted = '${nextPayday.day.toString().padLeft(2, '0')} $nextPaydayMonthName ${nextPayday.year}';
+    final String printDateFormatted = DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
+
+    // Filter to selected month
+    final monthRecords = records.where((r) => r.date.startsWith(activeKey)).toList();
+    final monthSkuEntries = skuEntries.where((e) => e.date.startsWith(activeKey)).toList();
+    final monthPenalties = penalties.where((p) => p.date.startsWith(activeKey)).toList();
+
     // Calculations
     int shiftSalary = 0;
     int regulerCount = 0;
@@ -41,7 +65,7 @@ class PdfSalaryService {
     int trainingCount = 0;
     int totalHours = 0;
 
-    for (final r in records) {
+    for (final r in monthRecords) {
       shiftSalary += r.rate;
       if (r.type == 'reguler') {
         regulerCount++;
@@ -66,37 +90,18 @@ class PdfSalaryService {
     }
 
     int totalSku = 0;
-    for (final e in skuEntries) {
+    for (final e in monthSkuEntries) {
       totalSku += e.count;
     }
     final int skuBonus = settings.getBonusForSku(totalSku);
     final String severityLabel = settings.getSeverityTierLabel(totalSku);
 
     int totalPenalty = 0;
-    for (final p in penalties) {
+    for (final p in monthPenalties) {
       totalPenalty += p.amount;
     }
 
     final int netSalary = (shiftSalary + skuBonus - totalPenalty).clamp(0, 999999999);
-
-    // Period dates
-    DateTime refDate = DateTime(2026, 8, 1);
-    if (records.isNotEmpty) {
-      final parsed = DateTime.tryParse(records.first.date);
-      if (parsed != null) refDate = parsed;
-    }
-
-    final monthNames = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ];
-    final int lastDayOfMonth = DateTime(refDate.year, refDate.month + 1, 0).day;
-    final String currentMonthName = monthNames[refDate.month - 1];
-
-    final DateTime nextPayday = DateTime(refDate.year, refDate.month + 1, settings.paydayDay);
-    final String nextPaydayMonthName = monthNames[nextPayday.month - 1];
-    final String paydayFormatted = '${nextPayday.day.toString().padLeft(2, '0')} $nextPaydayMonthName ${nextPayday.year}';
-    final String printDateFormatted = DateFormat('dd/MM/yyyy HH:mm').format(DateTime.now());
 
     // Primary Colors
     const primaryGreen = PdfColor.fromInt(0xFF064E3B);
@@ -201,7 +206,7 @@ class PdfSalaryService {
                     child: pw.Column(
                       crossAxisAlignment: pw.CrossAxisAlignment.start,
                       children: [
-                        _buildInfoRow('Periode Perhitungan', '01 $currentMonthName - $lastDayOfMonth $currentMonthName ${refDate.year}'),
+                        _buildInfoRow('Periode Perhitungan', '01 $currentMonthName - $lastDayOfMonth $currentMonthName $year'),
                         pw.SizedBox(height: 4),
                         _buildInfoRow('Jadwal Gajian (Payday)', paydayFormatted, isHighlight: true),
                         pw.SizedBox(height: 4),
@@ -248,8 +253,8 @@ class PdfSalaryService {
                   ],
                 ),
                 // Rows
-                ...List.generate(records.length, (index) {
-                  final rec = records[index];
+                ...List.generate(monthRecords.length, (index) {
+                  final rec = monthRecords[index];
                   final isEven = index % 2 == 0;
                   final isOff = rec.type == 'off';
 
@@ -360,11 +365,11 @@ class PdfSalaryService {
               ],
             ),
 
-            if (penalties.isNotEmpty) ...[
+            if (monthPenalties.isNotEmpty) ...[
               pw.SizedBox(height: 10),
               pw.Text('Catatan Denda Komplain Customer:', style: pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold, color: const PdfColor.fromInt(0xFFDC2626))),
               pw.SizedBox(height: 2),
-              ...penalties.map((p) => pw.Text(
+              ...monthPenalties.map((p) => pw.Text(
                 '- ${p.date} [${p.typeLabel}]: -${_formatCurrency(p.amount)} ${p.notes.isNotEmpty ? "(${p.notes})" : ""}',
                 style: const pw.TextStyle(fontSize: 8, color: textGray),
               )),

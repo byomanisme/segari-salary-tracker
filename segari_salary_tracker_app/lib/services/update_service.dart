@@ -44,7 +44,7 @@ class AppUpdateInfo {
 
 class UpdateService {
   static const String currentVersion = '1.3.0';
-  static const int currentBuildNumber = 11;
+  static const int currentBuildNumber = 12;
 
   // Live remote update endpoint on user domain
   static const String manifestUrl = 'https://lukmanhakim.id/apk/version.json';
@@ -57,11 +57,10 @@ class UpdateService {
 
   // Latest Release Notes for current version (shown on first launch after update)
   static final List<String> currentWhatsNewList = [
-    '📅 Siklus Bulanan Target SKU & Denda: Reset otomatis di bulan baru dengan navigator bulan & log riwayat detail.',
-    '🕒 Input Jam Kerja Rapi & Lengkap: Preset resmi Excel Segari (termasuk gap istirahat 1 jam: 09:00-18:00 & 19:00-22:00) & tanpa input huruf manual.',
-    '📄 Background Doodle Grocery di PDF: Slip gaji PDF semakin elegan dengan watermark doodle sembako Segari.',
-    '📲 Format WhatsApp Rapi & Terstruktur: Rekap kehadiran, lembur, komisi SKU, dan denda semakin bersih.',
-    '🛠️ Perbaikan Multitasking Android: Bebas duplikasi jendela ganda di menu Recent Apps.',
+    '📊 Input Target SKU Kumulatif Dashboard Segari: Cukup masukkan total di monitor Segari, selisih picking harian otomatis terhitung!',
+    '🗓️ Filter Tanggal Manpower Picking: Filter dari-sampai (Hari Ini, Bulan Penuh, Custom Rentang Tanggal) gaya monitor Segari WH Gading Serpong.',
+    '📲 Perbaikan Bug Ekspor WhatsApp: Default otomatis September 2026 dan dilengkapi Navigator Pemilih Bulan.',
+    '📄 Perbaikan Bug Slip Gaji PDF: Default otomatis September 2026 dengan Navigator Bulan dan nama file dinamis.',
   ];
 
   /// Check if the user just updated the app to show "What's New"

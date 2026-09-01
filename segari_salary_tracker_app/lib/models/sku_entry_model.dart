@@ -3,12 +3,18 @@ class SkuEntry {
   final String date;
   final int count;
   final String notes;
+  final int? cumulativeTotal;
+  final String? avgPicking;
+  final String? speedTime;
 
   SkuEntry({
     required this.id,
     required this.date,
     required this.count,
     required this.notes,
+    this.cumulativeTotal,
+    this.avgPicking,
+    this.speedTime,
   });
 
   Map<String, dynamic> toJson() {
@@ -17,6 +23,9 @@ class SkuEntry {
       'date': date,
       'count': count,
       'notes': notes,
+      if (cumulativeTotal != null) 'cumulativeTotal': cumulativeTotal,
+      if (avgPicking != null) 'avgPicking': avgPicking,
+      if (speedTime != null) 'speedTime': speedTime,
     };
   }
 
@@ -26,6 +35,9 @@ class SkuEntry {
       date: json['date'] as String? ?? '',
       count: (json['count'] as num?)?.toInt() ?? 0,
       notes: json['notes'] as String? ?? '',
+      cumulativeTotal: (json['cumulativeTotal'] as num?)?.toInt(),
+      avgPicking: json['avgPicking'] as String?,
+      speedTime: json['speedTime'] as String?,
     );
   }
 
@@ -34,12 +46,18 @@ class SkuEntry {
     String? date,
     int? count,
     String? notes,
+    int? cumulativeTotal,
+    String? avgPicking,
+    String? speedTime,
   }) {
     return SkuEntry(
       id: id ?? this.id,
       date: date ?? this.date,
       count: count ?? this.count,
       notes: notes ?? this.notes,
+      cumulativeTotal: cumulativeTotal ?? this.cumulativeTotal,
+      avgPicking: avgPicking ?? this.avgPicking,
+      speedTime: speedTime ?? this.speedTime,
     );
   }
 }

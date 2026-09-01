@@ -103,6 +103,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showWhatsAppDialog(BuildContext context) {
+    final now = DateTime.now();
+    final currentCycleKey = '${now.year}-${now.month.toString().padLeft(2, '0')}';
     showDialog(
       context: context,
       builder: (_) => WhatsAppDialog(
@@ -110,6 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
         records: widget.records,
         penalties: widget.penalties,
         skuEntries: widget.skuEntries,
+        initialCycleKey: currentCycleKey,
       ),
     );
   }
@@ -182,6 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     records: widget.records,
                     penalties: widget.penalties,
                     skuEntries: widget.skuEntries,
+                    initialCycleKey: currentCycleKey,
                   ),
                 ),
               );
@@ -229,6 +233,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       context: context,
                       builder: (_) => AddSkuDialog(
                         onSave: widget.onAddSku!,
+                        existingSkuEntries: widget.skuEntries,
+                        activeCycleKey: currentCycleKey,
                       ),
                     );
                   }
