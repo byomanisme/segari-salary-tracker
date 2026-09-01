@@ -13,12 +13,14 @@ class SegariContributionGrid extends StatefulWidget {
   final List<AttendanceRecord> records;
   final List<ComplaintPenalty> penalties;
   final List<SkuEntry> skuEntries;
+  final String? initialCycleKey;
 
   const SegariContributionGrid({
     Key? key,
     required this.records,
     this.penalties = const [],
     this.skuEntries = const [],
+    this.initialCycleKey,
   }) : super(key: key);
 
   @override
@@ -47,9 +49,16 @@ class MascotSkin {
 
 class _SegariContributionGridState extends State<SegariContributionGrid> with WidgetsBindingObserver {
   int _totalWeeks = 16;
-  int _focusedMonth = 8; // Default: 8 (Agustus 2026). Can be clicked to switch to 7 (Juli) or 9 (September)
+  late int _focusedYear;
+  late int _focusedMonth;
+  bool _isMonthlyCalendarView = true; // Default: clean monthly calendar grid view
   late DateTime _calendarStart;
   final Random _rng = Random();
+
+  static const List<String> _monthNames = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
 
   static const List<MascotSkin> _mascotSkins = [
     MascotSkin(
@@ -171,6 +180,15 @@ class _SegariContributionGridState extends State<SegariContributionGrid> with Wi
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    final now = DateTime.now();
+    if (widget.initialCycleKey != null && widget.initialCycleKey!.contains('-')) {
+      final parts = widget.initialCycleKey!.split('-');
+      _focusedYear = int.tryParse(parts[0]) ?? now.year;
+      _focusedMonth = int.tryParse(parts[1]) ?? now.month;
+    } else {
+      _focusedYear = now.year;
+      _focusedMonth = now.month;
+    }
     _loadSavedSkin();
     _initCalendarDates();
     _spawnGroceries();
@@ -394,19 +412,159 @@ class _SegariContributionGridState extends State<SegariContributionGrid> with Wi
   }
 
   void _initCalendarDates() {
-    // Center date based on _focusedMonth (2026)
-    final refDate = DateTime(2026, _focusedMonth, 15);
-    final centerMonday = refDate.subtract(Duration(days: refDate.weekday - 1));
-    // Center the calendar with 7 weeks before and 8 weeks after
-    _calendarStart = centerMonday.subtract(const Duration(days: 7 * 7));
+    // Start from the Monday on or before the 1st day of _focusedMonth
+    final firstDayOfMonth = DateTime(_focusedYear, _focusedMonth, 1);
+    final startMonday = firstDayOfMonth.subtract(Duration(days: firstDayOfMonth.weekday - 1));
+    _calendarStart = startMonday;
   }
 
-  void _switchFocusedMonth(int month) {
+  void _switchFocusedMonth(int month, {int? year}) {
     setState(() {
       _focusedMonth = month;
+      if (year != null) _focusedYear = year;
       _initCalendarDates();
       _spawnGroceries();
     });
+  }
+
+  void _shiftMonth(int offset) {
+    setState(() {
+      _focusedMonth += offset;
+      if (_focusedMonth > 12) {
+        _focusedMonth = 1;
+        _focusedYear += 1;
+      } else if (_focusedMonth < 1) {
+        _focusedMonth = 12;
+        _focusedYear -= 1;
+      }
+      _initCalendarDates();
+      _spawnGroceries();
+    });
+  }
+
+  void _showMonthYearPicker(BuildContext context) {
+    int tempYear = _focusedYear;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1E293B),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Pilih Bulan & Tahun Kalender',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Color(0xFF94A3B8), size: 18),
+                          onPressed: () => Navigator.pop(ctx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Year Navigator Row
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0F172A),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.white.withOpacity(0.08)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.chevron_left, color: Color(0xFF10B981)),
+                            onPressed: () {
+                              setDialogState(() {
+                                tempYear--;
+                              });
+                            },
+                          ),
+                          Text(
+                            '$tempYear',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.chevron_right, color: Color(0xFF10B981)),
+                            onPressed: () {
+                              setDialogState(() {
+                                tempYear++;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    // 12 Months Grid (4 rows x 3 columns)
+                    GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 8,
+                        crossAxisSpacing: 8,
+                        childAspectRatio: 2.3,
+                      ),
+                      itemCount: 12,
+                      itemBuilder: (context, index) {
+                        final monthNum = index + 1;
+                        final isSelected = (monthNum == _focusedMonth && tempYear == _focusedYear);
+                        return InkWell(
+                          onTap: () {
+                            _switchFocusedMonth(monthNum, year: tempYear);
+                            Navigator.pop(ctx);
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: isSelected ? const Color(0xFF10B981) : const Color(0xFF0F172A),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isSelected ? const Color(0xFF10B981) : Colors.white.withOpacity(0.08),
+                              ),
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              _monthNames[index],
+                              style: TextStyle(
+                                color: isSelected ? const Color(0xFF064E3B) : Colors.white,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _spawnGroceries() {
@@ -572,15 +730,17 @@ class _SegariContributionGridState extends State<SegariContributionGrid> with Wi
     return null;
   }
 
-  Color _getColorForRecord(AttendanceRecord? record, int monthNumber) {
+  Color _getColorForRecord(AttendanceRecord? record, int monthNumber, {bool ignoreFocusedMonth = false}) {
+    // Only display shift colors for the currently selected/focused month!
+    if (!ignoreFocusedMonth && monthNumber != _focusedMonth) {
+      return const Color(0xFF0F172A);
+    }
     if (record == null) {
-      if (monthNumber == _focusedMonth) return const Color(0xFF1E293B);
-      if (monthNumber < _focusedMonth) return const Color(0xFF151D2E);
-      return const Color(0xFF101726);
+      return monthNumber == _focusedMonth ? const Color(0xFF1E293B) : const Color(0xFF0F172A);
     }
     switch (record.type) {
       case 'off':
-        return const Color(0xFFEF4444); // 🔴 Merah (OFF / Libur) persis seperti jadwal Segari
+        return const Color(0xFFEF4444); // 🔴 Merah (OFF / Libur)
       case 'mp3':
         return const Color(0xFF8B5CF6); // 🟣 Ungu (Shift MP3H 3 Jam)
       case 'reguler_mp3':
@@ -592,11 +752,11 @@ class _SegariContributionGridState extends State<SegariContributionGrid> with Wi
       case 'reguler':
         final start = record.shiftHours.trim();
         if (start.startsWith('13') || start.startsWith('14')) {
-          return const Color(0xFFF97316); // 🟠 Oranye (Shift Siang / Sore 13:00-22:00 / 14:00-23:00)
+          return const Color(0xFFF97316); // 🟠 Oranye (Shift Siang / Sore 13:00 / 14:00)
         } else if (start.startsWith('03')) {
-          return const Color(0xFFEAB308); // 🟡 Kuning (Shift Subuh 03:00-12:00)
+          return const Color(0xFFEAB308); // 🟡 Kuning (Shift Subuh 03:00)
         }
-        return const Color(0xFF06B6D4); // 🔷 Cyan / Biru Muda (Shift Pagi 04:00-13:00 / 05:00-14:00 / 09:00-18:00)
+        return const Color(0xFF06B6D4); // 🔷 Cyan / Biru Muda (Shift Pagi)
       default:
         return const Color(0xFF06B6D4);
     }
@@ -642,7 +802,7 @@ class _SegariContributionGridState extends State<SegariContributionGrid> with Wi
                         Text(
                           record != null ? record.typeLabel : 'Tidak Ada Catatan Shift',
                           style: TextStyle(
-                            color: record != null ? _getColorForRecord(record, date.month) : const Color(0xFF94A3B8),
+                            color: record != null ? _getColorForRecord(record, date.month, ignoreFocusedMonth: true) : const Color(0xFF94A3B8),
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                           ),
@@ -653,7 +813,7 @@ class _SegariContributionGridState extends State<SegariContributionGrid> with Wi
                       width: 34,
                       height: 34,
                       decoration: BoxDecoration(
-                        color: _getColorForRecord(record, date.month),
+                        color: _getColorForRecord(record, date.month, ignoreFocusedMonth: true),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
@@ -822,11 +982,18 @@ class _SegariContributionGridState extends State<SegariContributionGrid> with Wi
 
   @override
   Widget build(BuildContext context) {
+    // 1. Calculate metrics specifically for the currently focused month and year!
+    final currentCyclePrefix = '$_focusedYear-${_focusedMonth.toString().padLeft(2, '0')}';
+    final monthRecords = widget.records.where((r) => r.date.startsWith(currentCyclePrefix)).toList();
+    final Map<String, AttendanceRecord> recordMap = {
+      for (final r in widget.records) r.date: r,
+    };
+
     int workingDays = 0;
     int offDays = 0;
     int totalEstimatedHours = 0;
 
-    for (final r in widget.records) {
+    for (final r in monthRecords) {
       if (r.type != 'off') {
         workingDays++;
         if (r.type == 'reguler') {
@@ -835,6 +1002,8 @@ class _SegariContributionGridState extends State<SegariContributionGrid> with Wi
           totalEstimatedHours += 3;
         } else if (r.type == 'reguler_mp3') {
           totalEstimatedHours += 11;
+        } else if (r.type == 'double_mp3') {
+          totalEstimatedHours += 6;
         }
       } else {
         offDays++;
@@ -852,125 +1021,115 @@ class _SegariContributionGridState extends State<SegariContributionGrid> with Wi
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header: Segari Mascot & Status & Skin Selector
+          // 1. Header: Month & Year Navigator + Mode Toggle
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              // Clickable Month & Year Dropdown
               InkWell(
-                onTap: () => _showSkinSelectorDialog(context),
-                borderRadius: BorderRadius.circular(10),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
+                onTap: () => _showMonthYearPicker(context),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F172A),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF10B981).withOpacity(0.4)),
+                  ),
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: _currentSkin.primaryColor.withOpacity(0.18),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: _currentSkin.primaryColor.withOpacity(0.4)),
-                        ),
-                        child: PixelMascotWidget(
-                          skinId: _currentSkin.id,
-                          size: 20,
-                          frameIndex: _animTick,
+                      const Icon(Icons.calendar_month, color: Color(0xFF10B981), size: 14),
+                      const SizedBox(width: 5),
+                      Text(
+                        '${_monthNames[_focusedMonth - 1]} $_focusedYear',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                _currentSkin.title,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(width: 5),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                decoration: BoxDecoration(
-                                  color: _currentSkin.primaryColor.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(color: _currentSkin.primaryColor.withOpacity(0.35)),
-                                ),
-                                child: const Text('Skin 🎨', style: TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.bold)),
-                              ),
-                            ],
-                          ),
-                          Row(
-                            children: [
-                              const Text(
-                                'Memakan: ',
-                                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10),
-                              ),
-                              Text(
-                                _lastEatenName,
-                                style: TextStyle(color: _currentSkin.primaryColor, fontSize: 10, fontWeight: FontWeight.bold),
-                              ),
-                              Text(
-                                ' ($_itemsEaten SKU)',
-                                style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 10, fontWeight: FontWeight.w600),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                      const SizedBox(width: 3),
+                      const Icon(Icons.arrow_drop_down, color: Color(0xFF10B981), size: 16),
                     ],
                   ),
                 ),
               ),
               Row(
                 children: [
+                  // Prev Month Arrow
                   InkWell(
-                    onTap: () => _showSkinSelectorDialog(context),
-                    borderRadius: BorderRadius.circular(10),
+                    onTap: () => _shiftMonth(-1),
+                    borderRadius: BorderRadius.circular(6),
                     child: Container(
-                      padding: const EdgeInsets.all(6),
-                      margin: const EdgeInsets.only(right: 6),
+                      padding: const EdgeInsets.all(5),
                       decoration: BoxDecoration(
                         color: const Color(0xFF0F172A),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.white.withOpacity(0.1)),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.white.withOpacity(0.08)),
                       ),
-                      child: const Icon(Icons.palette_outlined, color: Color(0xFF38BDF8), size: 14),
+                      child: const Icon(Icons.chevron_left, color: Color(0xFF10B981), size: 16),
                     ),
                   ),
+                  const SizedBox(width: 4),
+                  // Next Month Arrow
                   InkWell(
-                    onTap: () => setState(() => _isSnakeActive = !_isSnakeActive),
-                    borderRadius: BorderRadius.circular(12),
+                    onTap: () => _shiftMonth(1),
+                    borderRadius: BorderRadius.circular(6),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                      padding: const EdgeInsets.all(5),
                       decoration: BoxDecoration(
-                        color: _isSnakeActive ? const Color(0xFF064E3B) : const Color(0xFF0F172A),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _isSnakeActive ? const Color(0xFF10B981) : Colors.white.withOpacity(0.1),
-                        ),
+                        color: const Color(0xFF0F172A),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.white.withOpacity(0.08)),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _isSnakeActive ? Icons.pause : Icons.play_arrow,
-                            color: _isSnakeActive ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
-                            size: 13,
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            _isSnakeActive ? 'Pause' : 'Play',
-                            style: TextStyle(
-                              color: _isSnakeActive ? const Color(0xFF6EE7B7) : const Color(0xFF94A3B8),
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                      child: const Icon(Icons.chevron_right, color: Color(0xFF10B981), size: 16),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // View Mode Toggle (Kalender / Matriks)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F172A),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.white.withOpacity(0.08)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        InkWell(
+                          onTap: () => setState(() => _isMonthlyCalendarView = true),
+                          borderRadius: const BorderRadius.horizontal(left: Radius.circular(7)),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: _isMonthlyCalendarView ? const Color(0xFF10B981) : Colors.transparent,
+                              borderRadius: const BorderRadius.horizontal(left: Radius.circular(7)),
+                            ),
+                            child: Icon(
+                              Icons.calendar_view_month,
+                              size: 15,
+                              color: _isMonthlyCalendarView ? Colors.white : const Color(0xFF94A3B8),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                        InkWell(
+                          onTap: () => setState(() => _isMonthlyCalendarView = false),
+                          borderRadius: const BorderRadius.horizontal(right: Radius.circular(7)),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: !_isMonthlyCalendarView ? const Color(0xFF10B981) : Colors.transparent,
+                              borderRadius: const BorderRadius.horizontal(right: Radius.circular(7)),
+                            ),
+                            child: Icon(
+                              Icons.grid_view,
+                              size: 15,
+                              color: !_isMonthlyCalendarView ? Colors.white : const Color(0xFF94A3B8),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -980,78 +1139,445 @@ class _SegariContributionGridState extends State<SegariContributionGrid> with Wi
 
           const SizedBox(height: 10),
 
-          // Mini Stats
+          // 2. Mini Stats Row (Synchronized to selected month)
           Row(
             children: [
-              _buildMetric('Total Jam', '$totalEstimatedHours Jam', Icons.access_time),
-              const SizedBox(width: 6),
               _buildMetric('Shift Aktif', '$workingDays Hari', Icons.check_circle_outline),
               const SizedBox(width: 6),
               _buildMetric('Hari Libur', '$offDays Hari', Icons.bed_outlined),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // Clickable Interactive Month Switcher (Juli, Agustus, September)
-          Row(
-            children: [
-              _buildInteractiveMonthTab(
-                monthNumber: 7,
-                label: 'Juli 2026',
-                isSelected: _focusedMonth == 7,
-              ),
               const SizedBox(width: 6),
-              _buildInteractiveMonthTab(
-                monthNumber: 8,
-                label: 'Agustus 2026',
-                isSelected: _focusedMonth == 8,
-              ),
-              const SizedBox(width: 6),
-              _buildInteractiveMonthTab(
-                monthNumber: 9,
-                label: 'September 2026',
-                isSelected: _focusedMonth == 9,
-              ),
+              _buildMetric('Total Jam', '$totalEstimatedHours Jam', Icons.access_time),
             ],
           ),
 
           const SizedBox(height: 10),
 
-          // Responsive Full-Width LayoutBuilder Grid
-          LayoutBuilder(
-            builder: (context, constraints) {
-              const dayLabelWidth = 26.0;
-              final gridAvailableWidth = constraints.maxWidth - dayLabelWidth - 6;
+          // 3. Dynamic Month Quick-Pills (Month-1, Focused Month, Month+1)
+          Row(
+            children: [
+              _buildDynamicMonthTab(-1),
+              const SizedBox(width: 6),
+              _buildDynamicMonthTab(0),
+              const SizedBox(width: 6),
+              _buildDynamicMonthTab(1),
+            ],
+          ),
 
-              final columnCount = (gridAvailableWidth / 21.0).floor().clamp(12, 20);
-              _totalWeeks = columnCount;
+          const SizedBox(height: 12),
 
-              final cellSize = (gridAvailableWidth / columnCount) - 3.0;
+          // 4. Main Calendar Content: Monthly Calendar Grid OR Mascot Matrix
+          if (_isMonthlyCalendarView)
+            _buildMonthlyCalendarView(recordMap)
+          else
+            _buildMascotMatrixView(),
 
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Day Labels
-                  Column(
-                    children: [
-                      _buildDayLabel('Sen', cellSize),
-                      _buildDayLabel('Sel', cellSize),
-                      _buildDayLabel('Rab', cellSize),
-                      _buildDayLabel('Kam', cellSize),
-                      _buildDayLabel('Jum', cellSize),
-                      _buildDayLabel('Sab', cellSize),
-                      _buildDayLabel('Min', cellSize),
-                    ],
+          const SizedBox(height: 10),
+          Divider(color: Colors.white.withOpacity(0.06), height: 1),
+          const SizedBox(height: 8),
+
+          // 5. Segari Shift & Status Legend
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _buildLegendItem(const Color(0xFFEF4444), 'OFF (Merah)'),
+              _buildLegendItem(const Color(0xFF8B5CF6), 'MP3H (Ungu)'),
+              _buildLegendItem(const Color(0xFFF97316), 'Siang (Oranye)'),
+              _buildLegendItem(const Color(0xFFEAB308), 'Subuh (Kuning)'),
+              _buildLegendItem(const Color(0xFF06B6D4), 'Pagi (Cyan)'),
+              _buildLegendItem(const Color(0xFF10B981), 'Lembur (11 Jam)'),
+              _buildLegendItem(const Color(0xFF3B82F6), 'Double (6 Jam)'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 📅 Clean & Intuitive 1-Month Standard Calendar Grid
+  Widget _buildMonthlyCalendarView(Map<String, AttendanceRecord> recordMap) {
+    final firstDayOfMonth = DateTime(_focusedYear, _focusedMonth, 1);
+    final daysInMonth = DateTime(_focusedYear, _focusedMonth + 1, 0).day;
+    final startWeekday = firstDayOfMonth.weekday; // 1 = Monday, 7 = Sunday
+    final prefixDays = startWeekday - 1; // Number of leading empty cells before day 1
+
+    final totalCells = prefixDays + daysInMonth;
+    final rowsCount = (totalCells / 7).ceil();
+
+    final now = DateTime.now();
+
+    return Column(
+      children: [
+        // Day Headers: Sen, Sel, Rab, Kam, Jum, Sab, Min
+        const Row(
+          children: [
+            _DayHeaderCell('Sen'),
+            _DayHeaderCell('Sel'),
+            _DayHeaderCell('Rab'),
+            _DayHeaderCell('Kam'),
+            _DayHeaderCell('Jum'),
+            _DayHeaderCell('Sab'),
+            _DayHeaderCell('Min'),
+          ],
+        ),
+        const SizedBox(height: 6),
+        // Day Cells Grid
+        for (int r = 0; r < rowsCount; r++) ...[
+          Padding(
+            padding: const EdgeInsets.only(bottom: 5),
+            child: Row(
+              children: [
+                for (int c = 0; c < 7; c++) ...[
+                  Builder(
+                    builder: (_) {
+                      final cellIndex = (r * 7) + c;
+                      final dayNumber = cellIndex - prefixDays + 1;
+
+                      if (dayNumber < 1 || dayNumber > daysInMonth) {
+                        return const Expanded(
+                          child: SizedBox(height: 48),
+                        );
+                      }
+
+                      final dayDate = DateTime(_focusedYear, _focusedMonth, dayNumber);
+                      final dateKey = DateFormat('yyyy-MM-dd').format(dayDate);
+                      final record = recordMap[dateKey];
+                      final isToday = now.year == dayDate.year &&
+                          now.month == dayDate.month &&
+                          now.day == dayDate.day;
+
+                      final hasPenalty = widget.penalties.any((p) => p.date == dateKey);
+                      final hasSku = widget.skuEntries.any((s) => s.date == dateKey);
+
+                      final Color cellColor = _getColorForRecord(record, _focusedMonth);
+
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: () => _showDayDetails(context, dayDate, record),
+                          child: Container(
+                            height: 48,
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            decoration: BoxDecoration(
+                              color: record != null ? cellColor : const Color(0xFF0F172A),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isToday
+                                    ? const Color(0xFF38BDF8)
+                                    : (record != null
+                                        ? Colors.white.withOpacity(0.25)
+                                        : Colors.white.withOpacity(0.06)),
+                                width: isToday ? 2.0 : 1.0,
+                              ),
+                              boxShadow: isToday
+                                  ? [
+                                      BoxShadow(
+                                        color: const Color(0xFF38BDF8).withOpacity(0.4),
+                                        blurRadius: 6,
+                                        offset: const Offset(0, 2),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      '$dayNumber',
+                                      style: TextStyle(
+                                        color: record != null
+                                            ? Colors.white
+                                            : (isToday ? const Color(0xFF38BDF8) : const Color(0xFF94A3B8)),
+                                        fontSize: 12,
+                                        fontWeight: (isToday || record != null)
+                                            ? FontWeight.bold
+                                            : FontWeight.w500,
+                                      ),
+                                    ),
+                                    if (hasPenalty) ...[
+                                      const SizedBox(width: 2),
+                                      Container(
+                                        width: 4,
+                                        height: 4,
+                                        decoration: const BoxDecoration(
+                                          color: Color(0xFFEF4444),
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                    ],
+                                    if (hasSku) ...[
+                                      const SizedBox(width: 2),
+                                      Container(
+                                        width: 4,
+                                        height: 4,
+                                        decoration: const BoxDecoration(
+                                          color: Color(0xFFFDE047),
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                _buildShiftBadge(record, isToday),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                  const SizedBox(width: 6),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
 
-                  // Edge-to-Edge Grid Columns
-                  Expanded(
+  // Mini Shift Badge inside Calendar Day Cell
+  Widget _buildShiftBadge(AttendanceRecord? record, bool isToday) {
+    if (record == null) {
+      if (isToday) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+          decoration: BoxDecoration(
+            color: const Color(0xFF38BDF8).withOpacity(0.2),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: const Text(
+            'Hari Ini',
+            style: TextStyle(color: Color(0xFF38BDF8), fontSize: 8, fontWeight: FontWeight.bold),
+          ),
+        );
+      }
+      return const SizedBox(height: 12);
+    }
+
+    String label = '';
+    if (record.type == 'off') {
+      label = 'OFF';
+    } else if (record.type == 'mp3') {
+      label = '3 Jam';
+    } else if (record.type == 'training') {
+      label = 'Trn';
+    } else if (record.type == 'reguler_mp3') {
+      label = '11 Jam';
+    } else if (record.type == 'double_mp3') {
+      label = '6 Jam';
+    } else if (record.type == 'reguler') {
+      final start = record.shiftHours.trim();
+      if (start.startsWith('13') || start.startsWith('14')) {
+        label = 'Siang';
+      } else if (start.startsWith('03')) {
+        label = 'Subuh';
+      } else {
+        label = 'Pagi';
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.35),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 8,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  // 🎮 Responsive Mascot & Grocery Game Matrix View
+  Widget _buildMascotMatrixView() {
+    return Column(
+      children: [
+        // Mascot Status Header
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            InkWell(
+              onTap: () => _showSkinSelectorDialog(context),
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: _currentSkin.primaryColor.withOpacity(0.18),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: _currentSkin.primaryColor.withOpacity(0.4)),
+                      ),
+                      child: PixelMascotWidget(
+                        skinId: _currentSkin.id,
+                        size: 20,
+                        frameIndex: _animTick,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              _currentSkin.title,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: _currentSkin.primaryColor.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: _currentSkin.primaryColor.withOpacity(0.35)),
+                              ),
+                              child: const Text('Skin 🎨', style: TextStyle(color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            const Text(
+                              'Memakan: ',
+                              style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10),
+                            ),
+                            Text(
+                              _lastEatenName,
+                              style: TextStyle(color: _currentSkin.primaryColor, fontSize: 10, fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              ' ($_itemsEaten SKU)',
+                              style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 10, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                InkWell(
+                  onTap: () => _showSkinSelectorDialog(context),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    margin: const EdgeInsets.only(right: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0F172A),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.white.withOpacity(0.1)),
+                    ),
+                    child: const Icon(Icons.palette_outlined, color: Color(0xFF38BDF8), size: 14),
+                  ),
+                ),
+                InkWell(
+                  onTap: () => setState(() => _isSnakeActive = !_isSnakeActive),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: _isSnakeActive ? const Color(0xFF064E3B) : const Color(0xFF0F172A),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: _isSnakeActive ? const Color(0xFF10B981) : Colors.white.withOpacity(0.1),
+                      ),
+                    ),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: List.generate(columnCount, (weekIndex) {
-                        return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _isSnakeActive ? Icons.pause : Icons.play_arrow,
+                          color: _isSnakeActive ? const Color(0xFF10B981) : const Color(0xFF94A3B8),
+                          size: 13,
+                        ),
+                        const SizedBox(width: 3),
+                        Text(
+                          _isSnakeActive ? 'Pause' : 'Play',
+                          style: TextStyle(
+                            color: _isSnakeActive ? const Color(0xFF6EE7B7) : const Color(0xFF94A3B8),
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 10),
+
+        // LayoutBuilder Grid
+        LayoutBuilder(
+          builder: (context, constraints) {
+            const dayLabelWidth = 26.0;
+            final gridAvailableWidth = constraints.maxWidth - dayLabelWidth - 6;
+
+            final columnCount = (gridAvailableWidth / 21.0).floor().clamp(12, 20);
+            _totalWeeks = columnCount;
+
+            final cellSize = (gridAvailableWidth / columnCount) - 3.0;
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Day Labels
+                Column(
+                  children: [
+                    _buildDayLabel('Sen', cellSize),
+                    _buildDayLabel('Sel', cellSize),
+                    _buildDayLabel('Rab', cellSize),
+                    _buildDayLabel('Kam', cellSize),
+                    _buildDayLabel('Jum', cellSize),
+                    _buildDayLabel('Sab', cellSize),
+                    _buildDayLabel('Min', cellSize),
+                  ],
+                ),
+                const SizedBox(width: 6),
+
+                // Edge-to-Edge Grid Columns with Monthly Boundary Gap
+                Expanded(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      for (int weekIndex = 0; weekIndex < columnCount; weekIndex++) ...[
+                        // 🌟 Visual Gap & Divider between months so user can easily differentiate months!
+                        if (weekIndex > 0 &&
+                            _calendarStart.add(Duration(days: weekIndex * 7)).month !=
+                            _calendarStart.add(Duration(days: (weekIndex - 1) * 7)).month) ...[
+                          Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            width: 1.5,
+                            height: 7 * (cellSize + 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF38BDF8).withValues(alpha: 0.45),
+                              borderRadius: BorderRadius.circular(1),
+                            ),
+                          ),
+                        ],
+                        Column(
                           children: List.generate(7, (dayIndex) {
                             final currentDayDate = _calendarStart.add(
                               Duration(days: (weekIndex * 7) + dayIndex),
@@ -1070,23 +1596,23 @@ class _SegariContributionGridState extends State<SegariContributionGrid> with Wi
                             Color cellColor = baseColor;
                             BoxBorder border = Border.all(
                               color: month == _focusedMonth
-                                  ? (rec != null ? Colors.white.withOpacity(0.25) : const Color(0xFF10B981).withOpacity(0.2))
-                                  : Colors.white.withOpacity(0.04),
-                              width: month == _focusedMonth ? 0.9 : 0.6,
+                                  ? (rec != null ? Colors.white.withValues(alpha: 0.3) : const Color(0xFF10B981).withValues(alpha: 0.2))
+                                  : Colors.white.withValues(alpha: 0.02),
+                              width: month == _focusedMonth ? 0.9 : 0.5,
                             );
                             List<BoxShadow>? shadows;
 
                             if (isMascotSegment) {
                               final isHead = segmentIndex == 0;
-                              cellColor = _currentSkin.primaryColor.withOpacity(isHead ? 0.25 : 0.14);
+                              cellColor = _currentSkin.primaryColor.withValues(alpha: isHead ? 0.25 : 0.14);
                               border = Border.all(
-                                color: _currentSkin.primaryColor.withOpacity(isHead ? 1.0 : 0.6),
+                                color: _currentSkin.primaryColor.withValues(alpha: isHead ? 1.0 : 0.6),
                                 width: isHead ? 1.2 : 0.8,
                               );
                               if (isHead) {
                                 shadows = [
                                   BoxShadow(
-                                    color: _currentSkin.primaryColor.withOpacity(0.6),
+                                    color: _currentSkin.primaryColor.withValues(alpha: 0.6),
                                     blurRadius: 6,
                                     spreadRadius: 0.5,
                                   ),
@@ -1114,7 +1640,6 @@ class _SegariContributionGridState extends State<SegariContributionGrid> with Wi
                                 ),
                               );
                             } else if (hasGrocery) {
-                              // Grocery Item Cell (Meat, Fish, Veggies, Milk, Eggs, Fruits)
                               cellColor = const Color(0xFF0F291E);
                               border = Border.all(color: const Color(0xFFF59E0B), width: 1);
                               cellContent = Center(
@@ -1130,9 +1655,9 @@ class _SegariContributionGridState extends State<SegariContributionGrid> with Wi
                                   style: TextStyle(
                                     color: month == _focusedMonth
                                         ? (rec != null ? Colors.white : const Color(0xFF64748B))
-                                        : const Color(0xFF334155),
+                                        : const Color(0xFF1E293B),
                                     fontSize: 7,
-                                    fontWeight: rec != null ? FontWeight.bold : FontWeight.normal,
+                                    fontWeight: (month == _focusedMonth && rec != null) ? FontWeight.bold : FontWeight.normal,
                                   ),
                                 ),
                               );
@@ -1155,46 +1680,37 @@ class _SegariContributionGridState extends State<SegariContributionGrid> with Wi
                               ),
                             );
                           }),
-                        );
-                      }),
-                    ),
+                        ),
+                      ],
+                    ],
                   ),
-                ],
-              );
-            },
-          ),
-
-          const SizedBox(height: 10),
-          Divider(color: Colors.white.withOpacity(0.06), height: 1),
-          const SizedBox(height: 8),
-
-          // Segari Shift & Status Legend
-          Wrap(
-            spacing: 8,
-            runSpacing: 4,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              _buildLegendItem(const Color(0xFFEF4444), 'OFF (Merah)'),
-              _buildLegendItem(const Color(0xFF8B5CF6), 'MP3H (Ungu)'),
-              _buildLegendItem(const Color(0xFFF97316), 'Siang (Oranye)'),
-              _buildLegendItem(const Color(0xFFEAB308), 'Subuh (Kuning)'),
-              _buildLegendItem(const Color(0xFF06B6D4), 'Pagi (Cyan)'),
-              _buildLegendItem(const Color(0xFF10B981), 'Lembur (11h)'),
-            ],
-          ),
-        ],
-      ),
+                ),
+              ],
+            );
+          },
+        ),
+      ],
     );
   }
 
-  Widget _buildInteractiveMonthTab({
-    required int monthNumber,
-    required String label,
-    required bool isSelected,
-  }) {
+  // Dynamic 3-Month Quick Tab
+  Widget _buildDynamicMonthTab(int offset) {
+    int targetMonth = _focusedMonth + offset;
+    int targetYear = _focusedYear;
+    if (targetMonth > 12) {
+      targetMonth = 1;
+      targetYear++;
+    } else if (targetMonth < 1) {
+      targetMonth = 12;
+      targetYear--;
+    }
+
+    final isSelected = offset == 0;
+    final label = '${_monthNames[targetMonth - 1].substring(0, 3)} $targetYear';
+
     return Expanded(
       child: InkWell(
-        onTap: () => _switchFocusedMonth(monthNumber),
+        onTap: () => _switchFocusedMonth(targetMonth, year: targetYear),
         borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 6),
@@ -1220,14 +1736,14 @@ class _SegariContributionGridState extends State<SegariContributionGrid> with Wi
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (isSelected) ...[
-                const Icon(Icons.check, size: 11, color: Color(0xFF064E3B)),
-                const SizedBox(width: 4),
+                const Icon(Icons.check, size: 10, color: Color(0xFF064E3B)),
+                const SizedBox(width: 3),
               ],
               Text(
                 label,
                 style: TextStyle(
                   color: isSelected ? const Color(0xFF064E3B) : const Color(0xFF94A3B8),
-                  fontSize: 10,
+                  fontSize: 10.5,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                 ),
               ),
@@ -1303,6 +1819,29 @@ class _SegariContributionGridState extends State<SegariContributionGrid> with Wi
           style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 9),
         ),
       ],
+    );
+  }
+}
+
+class _DayHeaderCell extends StatelessWidget {
+  final String text;
+  const _DayHeaderCell(this.text, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Text(
+          text,
+          style: const TextStyle(
+            color: Color(0xFF64748B),
+            fontSize: 10.5,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
     );
   }
 }

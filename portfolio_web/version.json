@@ -1,13 +1,13 @@
 {
   "version": "1.3.0",
-  "buildNumber": 12,
+  "buildNumber": 13,
   "releaseDate": "01 September 2026",
-  "title": "Pembaruan Gajiku Segari v1.3.0 (Build 12)",
+  "title": "Pembaruan Gajiku Segari v1.3.0 (Build 13)",
   "changelog": [
-    "📊 Input Target SKU Kumulatif Dashboard Segari: Cukup masukkan total di monitor Segari, selisih picking harian otomatis terhitung!",
-    "🗓️ Filter Tanggal Manpower Picking: Filter dari-sampai (Hari Ini, Bulan Penuh, Custom Rentang Tanggal) gaya monitor Segari WH Gading Serpong.",
-    "📲 Perbaikan Bug Ekspor WhatsApp: Default otomatis September 2026 dan dilengkapi Navigator Pemilih Bulan.",
-    "📄 Perbaikan Bug Slip Gaji PDF: Default otomatis September 2026 dengan Navigator Bulan dan nama file dinamis."
+    "📱 Card Target SKU & Denda Ringkas: Homescreen lebih rapi, compact, dan nyaman dipandang dengan pintasan langsung ke halaman monitor penuh.",
+    "🎨 Kalender Contribution Bulanan: Warna shift hanya muncul pada bulan yang dipilih (bulan lain otomatis redup) dengan gap pemisah antar bulan yang jelas.",
+    "📅 Integrasi Kalender Bulanan: Tampilan kalender 1 bulan penuh (Grid 7x5) dengan tanggal berwarna akurat sesuai shift dan metrik tersinkronisasi.",
+    "🧹 Pembersihan Halaman Target & Denda: Menghilangkan card riwayat & log redundan agar tampilan lebih fokus dan bersih."
   ],
   "downloadUrl": "https://lukmanhakim.id/apk/SegariSalaryTracker-v1.3.0.apk",
   "isMandatory": false

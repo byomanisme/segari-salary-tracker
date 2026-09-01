@@ -90,6 +90,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         onRefresh: _loadAllData,
         onOpenAddShift: _openAddShift,
         onOpenHistory: () => setState(() => _currentIndex = 1),
+        onOpenTargetAndPenalty: () => setState(() => _currentIndex = 2),
         onAddSku: (entry) async {
           await _storageService.addOrUpdateSkuEntry(entry);
           await _loadAllData();

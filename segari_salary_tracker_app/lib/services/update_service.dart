@@ -44,7 +44,7 @@ class AppUpdateInfo {
 
 class UpdateService {
   static const String currentVersion = '1.3.0';
-  static const int currentBuildNumber = 12;
+  static const int currentBuildNumber = 13;
 
   // Live remote update endpoint on user domain
   static const String manifestUrl = 'https://lukmanhakim.id/apk/version.json';
@@ -57,10 +57,10 @@ class UpdateService {
 
   // Latest Release Notes for current version (shown on first launch after update)
   static final List<String> currentWhatsNewList = [
-    '📊 Input Target SKU Kumulatif Dashboard Segari: Cukup masukkan total di monitor Segari, selisih picking harian otomatis terhitung!',
-    '🗓️ Filter Tanggal Manpower Picking: Filter dari-sampai (Hari Ini, Bulan Penuh, Custom Rentang Tanggal) gaya monitor Segari WH Gading Serpong.',
-    '📲 Perbaikan Bug Ekspor WhatsApp: Default otomatis September 2026 dan dilengkapi Navigator Pemilih Bulan.',
-    '📄 Perbaikan Bug Slip Gaji PDF: Default otomatis September 2026 dengan Navigator Bulan dan nama file dinamis.',
+    '📅 Integrasi Otomatis Card Kalender: Tampilan kalender bulanan 1 bulan penuh (Grid 7x5) dengan tanggal berwarna akurat sesuai shift (OFF, MP3H, Reguler, Lembur, Siang, Subuh, Pagi).',
+    '⚡ Sinkronisasi Metrik Shift: Shift Aktif, Hari Libur, dan Total Jam otomatis terhitung persis sesuai bulan dan tahun yang sedang aktif.',
+    '🗓️ Navigasi Bulan & Tahun Lengkap: Dilengkapi tombol geser (< >), pill navigasi dinamis, dan dialog pemilih Bulan & Tahun (Jan-Des, 2025-2030).',
+    '🎮 Toggle Kalender & Matriks Maskot: Beralih instan antara Tampilan Kalender Bulanan Rapi dan Matriks Game Maskot Segari.',
   ];
 
   /// Check if the user just updated the app to show "What's New"

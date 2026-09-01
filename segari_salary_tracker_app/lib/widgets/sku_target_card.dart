@@ -10,6 +10,8 @@ class SkuTargetCard extends StatefulWidget {
   final VoidCallback onAddSku;
   final Function(SkuEntry) onDeleteSku;
   final Function(UserSettings)? onUpdateSettings;
+  final bool isCompact;
+  final VoidCallback? onOpenDetail;
 
   const SkuTargetCard({
     Key? key,
@@ -18,6 +20,8 @@ class SkuTargetCard extends StatefulWidget {
     required this.onAddSku,
     required this.onDeleteSku,
     this.onUpdateSettings,
+    this.isCompact = false,
+    this.onOpenDetail,
   }) : super(key: key);
 
   @override
@@ -199,6 +203,185 @@ class _SkuTargetCardState extends State<SkuTargetCard> {
     final String dateRangeDisplay = (_filterStartDate != null && _filterEndDate != null)
         ? '${DateFormat('dd MMM yyyy').format(_filterStartDate!)} - ${DateFormat('dd MMM yyyy').format(_filterEndDate!)}'
         : 'Semua Periode';
+
+    // 📱 Sleek & Compact View for HomeScreen
+    if (widget.isCompact) {
+      int? nextTarget;
+      int needed = 0;
+      if (totalMonthSku < s1) {
+        nextTarget = s1;
+        needed = s1 - totalMonthSku;
+      } else if (totalMonthSku < s2) {
+        nextTarget = s2;
+        needed = s2 - totalMonthSku;
+      } else if (totalMonthSku < s3) {
+        nextTarget = s3;
+        needed = s3 - totalMonthSku;
+      }
+
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E293B),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: tierLevel > 0
+                ? const Color(0xFF10B981).withValues(alpha: 0.4)
+                : Colors.white.withValues(alpha: 0.08),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header: Icon + Title + Bonus Badge
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0EA5E9).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.inventory_2_outlined, color: Color(0xFF38BDF8), size: 16),
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Target SKU Picking',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          '${_formatNumber(totalMonthSku)} SKU Bulan Ini',
+                          style: const TextStyle(color: Color(0xFF38BDF8), fontSize: 11, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                // Bonus Badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: earnedBonus > 0
+                        ? const Color(0xFF10B981).withValues(alpha: 0.18)
+                        : const Color(0xFF0F172A),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: earnedBonus > 0
+                          ? const Color(0xFF10B981).withValues(alpha: 0.4)
+                          : Colors.white.withValues(alpha: 0.08),
+                    ),
+                  ),
+                  child: Text(
+                    earnedBonus > 0 ? '+${_formatCurrency(earnedBonus)}' : 'Bonus: Rp 0',
+                    style: TextStyle(
+                      color: earnedBonus > 0 ? const Color(0xFF34D399) : const Color(0xFF94A3B8),
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // Tier Progress Bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: overallProgress.clamp(0.0, 1.0),
+                minHeight: 6,
+                backgroundColor: const Color(0xFF0F172A),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  tierLevel >= 3 ? const Color(0xFF10B981) : const Color(0xFF38BDF8),
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+
+            // Tier status text
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  tierLevel > 0 ? 'Tier $tierLevel Aktif' : 'Mulai Target',
+                  style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10),
+                ),
+                Text(
+                  nextTarget != null
+                      ? 'Kurang ${_formatNumber(needed)} SKU ke Tier ${tierLevel + 1}'
+                      : '🎉 Target Maksimal Tercapai!',
+                  style: TextStyle(
+                    color: nextTarget != null ? const Color(0xFFCBD5E1) : const Color(0xFF10B981),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 10),
+            Divider(color: Colors.white.withValues(alpha: 0.06), height: 1),
+            const SizedBox(height: 8),
+
+            // Footer Quick Actions: Lihat Detail & + Input SKU
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                InkWell(
+                  onTap: widget.onOpenDetail,
+                  borderRadius: BorderRadius.circular(6),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Lihat Detail & Monitor',
+                          style: TextStyle(color: Color(0xFF38BDF8), fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                        SizedBox(width: 4),
+                        Icon(Icons.arrow_forward_ios, size: 10, color: Color(0xFF38BDF8)),
+                      ],
+                    ),
+                  ),
+                ),
+                InkWell(
+                  onTap: widget.onAddSku,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0284C7),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add, size: 13, color: Colors.white),
+                        SizedBox(width: 3),
+                        Text('Input SKU', style: TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
 
     return Container(
       width: double.infinity,

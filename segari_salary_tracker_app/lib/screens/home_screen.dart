@@ -27,6 +27,7 @@ class HomeScreen extends StatefulWidget {
   final Function(ComplaintPenalty)? onAddPenalty;
   final Function(ComplaintPenalty)? onDeletePenalty;
   final Function(UserSettings)? onUpdateSettings;
+  final VoidCallback? onOpenTargetAndPenalty;
 
   const HomeScreen({
     Key? key,
@@ -37,6 +38,7 @@ class HomeScreen extends StatefulWidget {
     required this.onRefresh,
     required this.onOpenAddShift,
     required this.onOpenHistory,
+    this.onOpenTargetAndPenalty,
     this.onAddSku,
     this.onDeleteSku,
     this.onAddPenalty,
@@ -218,15 +220,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 records: widget.records,
                 penalties: widget.penalties,
                 skuEntries: widget.skuEntries,
+                initialCycleKey: currentCycleKey,
               ),
 
               const SizedBox(height: 16),
 
-              // 3. Multi-Tier SKU Target Card (Filtered to Current Month)
+              // 3. Multi-Tier SKU Target Card (Compact on Home Screen)
               SkuTargetCard(
                 settings: widget.settings,
                 skuEntries: currentMonthSkuEntries,
                 onUpdateSettings: widget.onUpdateSettings,
+                isCompact: true,
+                onOpenDetail: widget.onOpenTargetAndPenalty,
                 onAddSku: () {
                   if (widget.onAddSku != null) {
                     showDialog(
@@ -246,12 +251,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // 4. Complaint Penalties Card (Filtered to Current Month)
+              // 4. Complaint Penalties Card (Compact on Home Screen)
               ComplaintPenaltyCard(
                 settings: widget.settings,
                 penalties: currentMonthPenalties,
+                isCompact: true,
+                onOpenDetail: widget.onOpenTargetAndPenalty,
                 onAddPenalty: () {
                   if (widget.onAddPenalty != null) {
                     showDialog(

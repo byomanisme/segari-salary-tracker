@@ -7,16 +7,6 @@ import '../widgets/complaint_penalty_card.dart';
 import '../widgets/add_sku_dialog.dart';
 import '../widgets/add_penalty_dialog.dart';
 
-import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import '../models/penalty_model.dart';
-import '../models/sku_entry_model.dart';
-import '../models/user_settings.dart';
-import '../widgets/sku_target_card.dart';
-import '../widgets/complaint_penalty_card.dart';
-import '../widgets/add_sku_dialog.dart';
-import '../widgets/add_penalty_dialog.dart';
-
 class SkuPenaltyScreen extends StatefulWidget {
   final UserSettings settings;
   final List<SkuEntry> skuEntries;
@@ -28,7 +18,7 @@ class SkuPenaltyScreen extends StatefulWidget {
   final Function(UserSettings)? onUpdateSettings;
 
   const SkuPenaltyScreen({
-    Key? key,
+    super.key,
     required this.settings,
     required this.skuEntries,
     required this.penalties,
@@ -37,7 +27,7 @@ class SkuPenaltyScreen extends StatefulWidget {
     required this.onAddPenalty,
     required this.onDeletePenalty,
     this.onUpdateSettings,
-  }) : super(key: key);
+  });
 
   @override
   State<SkuPenaltyScreen> createState() => _SkuPenaltyScreenState();
@@ -78,15 +68,6 @@ class _SkuPenaltyScreenState extends State<SkuPenaltyScreen> {
     });
   }
 
-  String _formatCurrency(num amount) {
-    final format = NumberFormat.currency(
-      locale: 'id_ID',
-      symbol: 'Rp ',
-      decimalDigits: 0,
-    );
-    return format.format(amount);
-  }
-
   @override
   Widget build(BuildContext context) {
     final parts = _activeCycleKey.split('-');
@@ -102,17 +83,6 @@ class _SkuPenaltyScreenState extends State<SkuPenaltyScreen> {
     final List<ComplaintPenalty> filteredPenalties = widget.penalties.where((p) {
       return p.date.startsWith(_activeCycleKey);
     }).toList();
-
-    int totalMonthSku = 0;
-    for (final e in filteredSkuEntries) {
-      totalMonthSku += e.count;
-    }
-    final int monthSkuBonus = widget.settings.getBonusForSku(totalMonthSku);
-
-    int totalMonthPenalty = 0;
-    for (final p in filteredPenalties) {
-      totalMonthPenalty += p.amount;
-    }
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B1120),
@@ -263,177 +233,7 @@ class _SkuPenaltyScreenState extends State<SkuPenaltyScreen> {
               onDeletePenalty: widget.onDeletePenalty,
             ),
 
-            const SizedBox(height: 16),
-
-            // Dedicated History Logs for SKU & Denda in Selected Month
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white.withOpacity(0.08)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          const Icon(Icons.history, color: Color(0xFF38BDF8), size: 18),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Riwayat & Log $currentMonthName $cycleYear',
-                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF0F172A),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          '${filteredSkuEntries.length} Input SKU • ${filteredPenalties.length} Denda',
-                          style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10.5),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Divider(color: Colors.white.withOpacity(0.08), height: 1),
-                  const SizedBox(height: 12),
-
-                  // 1. SKU Logs
-                  const Text(
-                    '📦 Log Input SKU Harian:',
-                    style: TextStyle(color: Color(0xFF38BDF8), fontSize: 11.5, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 6),
-                  if (filteredSkuEntries.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'Belum ada catatan SKU di bulan $currentMonthName $cycleYear',
-                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 11, fontStyle: FontStyle.italic),
-                      ),
-                    )
-                  else
-                    ...filteredSkuEntries.map((e) => Container(
-                      margin: const EdgeInsets.only(bottom: 6),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.white.withOpacity(0.04)),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.check_circle_outline, color: Color(0xFF10B981), size: 14),
-                              const SizedBox(width: 6),
-                              Text(
-                                e.date,
-                                style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 11.5),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                '+${NumberFormat('#,###', 'id_ID').format(e.count)} SKU',
-                                style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.bold, fontSize: 12),
-                              ),
-                            ],
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444), size: 16),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                            onPressed: () => widget.onDeleteSku(e),
-                          ),
-                        ],
-                      ),
-                    )),
-
-                  const SizedBox(height: 14),
-
-                  // 2. Denda Logs
-                  const Text(
-                    '⚠️ Log Denda Komplain:',
-                    style: TextStyle(color: Color(0xFFEF4444), fontSize: 11.5, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 6),
-                  if (filteredPenalties.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'Bersih! Tidak ada denda komplain di bulan $currentMonthName $cycleYear 🎉',
-                        style: const TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.w500),
-                      ),
-                    )
-                  else
-                    ...filteredPenalties.map((p) => Container(
-                      margin: const EdgeInsets.only(bottom: 6),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.2)),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${p.date}: ${p.typeLabel}',
-                                  style: const TextStyle(color: Color(0xFFFCA5A5), fontSize: 11.5, fontWeight: FontWeight.bold),
-                                ),
-                                if (p.notes.isNotEmpty)
-                                  Text(
-                                    'Catatan: ${p.notes}',
-                                    style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          Row(
-                            children: [
-                              Text(
-                                '-${_formatCurrency(p.amount)}',
-                                style: const TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.bold, fontSize: 12),
-                              ),
-                              const SizedBox(width: 8),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline, color: Color(0xFFEF4444), size: 16),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                                onPressed: () => widget.onDeletePenalty(p),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    )),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 100),
+            const SizedBox(height: 80),
           ],
         ),
       ),
