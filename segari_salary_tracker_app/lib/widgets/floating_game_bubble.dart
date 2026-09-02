@@ -65,11 +65,11 @@ class _FloatingGameBubbleState extends State<FloatingGameBubble>
           child: Material(
             color: Colors.transparent,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: 390,
-                  maxHeight: 560,
+                constraints: BoxConstraints(
+                  maxWidth: 410,
+                  maxHeight: MediaQuery.of(context).size.height * 0.88,
                 ),
                 child: BlockBlastView(
                   game: _game,

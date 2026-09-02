@@ -4,28 +4,81 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'block_shape.dart';
 
+class BonusTile {
+  final String id;
+  final String label;
+  final IconData icon;
+  final Color color;
+  final int bonusPoints;
+
+  const BonusTile({
+    required this.id,
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.bonusPoints,
+  });
+
+  static const List<BonusTile> availableTypes = [
+    BonusTile(
+      id: 'gift',
+      label: 'Kado Segari',
+      icon: Icons.card_giftcard_rounded,
+      color: Color(0xFFEF4444),
+      bonusPoints: 150,
+    ),
+    BonusTile(
+      id: 'star',
+      label: 'Bintang Emas',
+      icon: Icons.star_rounded,
+      color: Color(0xFFF59E0B),
+      bonusPoints: 120,
+    ),
+    BonusTile(
+      id: 'diamond',
+      label: 'Berlian Segari',
+      icon: Icons.diamond_rounded,
+      color: Color(0xFF06B6D4),
+      bonusPoints: 200,
+    ),
+    BonusTile(
+      id: 'coin',
+      label: 'Koin Emas',
+      icon: Icons.monetization_on_rounded,
+      color: Color(0xFF10B981),
+      bonusPoints: 100,
+    ),
+  ];
+}
+
 class BlastResult {
   final List<int> clearedRows;
   final List<int> clearedCols;
   final int basePoints;
   final int randomBonus;
+  final int specialBonusPoints;
+  final List<BonusTile> collectedBonusTiles;
   final int pointsEarned;
   final int combo;
   final String comboMessage;
   final int bonusSeconds;
   final bool isPerfectClear;
+  final int timestamp;
 
   BlastResult({
     required this.clearedRows,
     required this.clearedCols,
     required this.basePoints,
     required this.randomBonus,
+    this.specialBonusPoints = 0,
+    this.collectedBonusTiles = const [],
     required this.pointsEarned,
     required this.combo,
     required this.comboMessage,
     this.bonusSeconds = 0,
     this.isPerfectClear = false,
-  });
+    int? timestamp,
+  }) : timestamp = timestamp ?? DateTime.now().millisecondsSinceEpoch;
 }
 
 class BlockBlastGame extends ChangeNotifier {
@@ -40,6 +93,9 @@ class BlockBlastGame extends ChangeNotifier {
   int combo = 0;
   bool isGameOver = false;
   BlastResult? lastBlast;
+
+  // Mystery Bonus Cells on empty board cells (key: "r-c")
+  final Map<String, BonusTile> bonusCells = {};
 
   // Level & EXP System
   int level = 1;
@@ -82,6 +138,7 @@ class BlockBlastGame extends ChangeNotifier {
       boardSize,
       (_) => List.generate(boardSize, (_) => null),
     );
+    bonusCells.clear();
     score = 0;
     combo = 0;
     level = 1;
@@ -95,45 +152,60 @@ class BlockBlastGame extends ChangeNotifier {
     _stopTimer();
     _loadHighScore();
     _refillPieces();
+    _spawnBonusTiles(3);
     startTimer();
   }
 
+  void _spawnBonusTiles(int count) {
+    final emptyCells = <Point<int>>[];
+    for (int r = 0; r < boardSize; r++) {
+      for (int c = 0; c < boardSize; c++) {
+        if (board[r][c] == null && !bonusCells.containsKey('$r-$c')) {
+          emptyCells.add(Point(r, c));
+        }
+      }
+    }
+    emptyCells.shuffle(_random);
+    final toSpawn = min(count, emptyCells.length);
+    for (int i = 0; i < toSpawn; i++) {
+      final pt = emptyCells[i];
+      final tile = BonusTile.availableTypes[_random.nextInt(BonusTile.availableTypes.length)];
+      bonusCells['${pt.x}-${pt.y}'] = tile;
+    }
+  }
+
+  void _ensureBonusTiles() {
+    int emptyCount = 0;
+    for (int r = 0; r < boardSize; r++) {
+      for (int c = 0; c < boardSize; c++) {
+        if (board[r][c] == null) emptyCount++;
+      }
+    }
+    // Maintain 2 to 3 bonus tiles if enough empty space exists
+    if (bonusCells.length < 3 && emptyCount > 5) {
+      _spawnBonusTiles(3 - bonusCells.length);
+    }
+  }
+
   void startTimer() {
-    _countdownTimer?.cancel();
+    _stopTimer();
     isTimerRunning = true;
     _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (isGameOver) {
-        timer.cancel();
-        isTimerRunning = false;
-        return;
-      }
-
       if (remainingSeconds > 0) {
         remainingSeconds--;
         notifyListeners();
       } else {
+        _stopTimer();
         isGameOver = true;
-        timer.cancel();
-        isTimerRunning = false;
         _saveHighScore();
         notifyListeners();
       }
     });
   }
 
-  void pauseTimer() {
-    _countdownTimer?.cancel();
-    isTimerRunning = false;
-  }
-
-  void resumeTimer() {
-    if (!isGameOver && !isTimerRunning) {
-      startTimer();
-    }
-  }
-
   void _stopTimer() {
     _countdownTimer?.cancel();
+    _countdownTimer = null;
     isTimerRunning = false;
   }
 
@@ -169,7 +241,6 @@ class BlockBlastGame extends ChangeNotifier {
       level++;
       expToNextLevel = (expToNextLevel * 1.4).round();
       remainingSeconds += 15; // Bonus 15 seconds for Level Up!
-      // Level up bonus points
       final lvlBonus = level * 150;
       score += lvlBonus;
       hasLevelUp = true;
@@ -248,14 +319,43 @@ class BlockBlastGame extends ChangeNotifier {
       if (colFull) colsToClear.add(c);
     }
 
-    // 3. Clear lines & award blast score with combo multiplier + random bonus!
+    // 3. Clear lines & award blast score with combo multiplier + mystery tile bonus!
     final totalLines = rowsToClear.length + colsToClear.length;
     if (totalLines > 0) {
       combo++;
       final baseBonus = totalLines * 100;
       final comboBonus = combo * 50;
 
-      // Random lucky bonus points on every line blast (30 to 150 points)!
+      // Check for Mystery Bonus Tiles in the cleared lines!
+      int specialBonusPoints = 0;
+      final collectedTiles = <BonusTile>[];
+      final clearedKeys = <String>{};
+
+      for (final r in rowsToClear) {
+        for (int c = 0; c < boardSize; c++) {
+          final key = '$r-$c';
+          if (bonusCells.containsKey(key) && !clearedKeys.contains(key)) {
+            clearedKeys.add(key);
+            final tile = bonusCells.remove(key)!;
+            specialBonusPoints += tile.bonusPoints;
+            collectedTiles.add(tile);
+          }
+        }
+      }
+
+      for (final c in colsToClear) {
+        for (int r = 0; r < boardSize; r++) {
+          final key = '$r-$c';
+          if (bonusCells.containsKey(key) && !clearedKeys.contains(key)) {
+            clearedKeys.add(key);
+            final tile = bonusCells.remove(key)!;
+            specialBonusPoints += tile.bonusPoints;
+            collectedTiles.add(tile);
+          }
+        }
+      }
+
+      // Random lucky bonus points on every line blast (25 to 150 points)
       final randomBonusPoints = (_random.nextInt(6) + 1) * 25;
 
       for (final r in rowsToClear) {
@@ -282,7 +382,7 @@ class BlockBlastGame extends ChangeNotifier {
       }
 
       int perfectClearBonus = isPerfect ? 800 : 0;
-      final totalBlastPoints = baseBonus + comboBonus + randomBonusPoints + perfectClearBonus;
+      final totalBlastPoints = baseBonus + comboBonus + randomBonusPoints + specialBonusPoints + perfectClearBonus;
 
       score += totalBlastPoints;
       _addExp(totalBlastPoints);
@@ -292,7 +392,9 @@ class BlockBlastGame extends ChangeNotifier {
       remainingSeconds += bonusTime;
 
       String message = 'BLAST! 💥';
-      if (isPerfect) {
+      if (collectedTiles.isNotEmpty) {
+        message = '${collectedTiles.first.label} +$specialBonusPoints! 🎁';
+      } else if (isPerfect) {
         message = 'PERFECT CLEAR! 👑 +800';
       } else if (combo >= 4) {
         message = 'SUPER COMBO x$combo! 🔥';
@@ -309,12 +411,17 @@ class BlockBlastGame extends ChangeNotifier {
         clearedCols: colsToClear,
         basePoints: baseBonus + comboBonus,
         randomBonus: randomBonusPoints + perfectClearBonus,
+        specialBonusPoints: specialBonusPoints,
+        collectedBonusTiles: collectedTiles,
         pointsEarned: totalBlastPoints,
         combo: combo,
         comboMessage: message,
         bonusSeconds: bonusTime,
         isPerfectClear: isPerfect,
       );
+
+      // Respawn bonus tiles on new empty cells
+      _ensureBonusTiles();
     } else {
       combo = 0;
       lastBlast = null;
@@ -322,7 +429,7 @@ class BlockBlastGame extends ChangeNotifier {
 
     _saveHighScore();
 
-    // 4. Refill if all pieces placed
+    // If tray is empty, refill with 3 new pieces
     if (currentPieces.every((p) => p == null)) {
       _refillPieces();
     } else {
@@ -334,28 +441,29 @@ class BlockBlastGame extends ChangeNotifier {
   }
 
   void _checkGameOver() {
-    final available = currentPieces.whereType<BlockShape>().toList();
-    if (available.isEmpty) {
-      isGameOver = false;
-      return;
-    }
+    if (isGameOver) return;
 
-    // Check if ANY piece can fit ANYWHERE on the board
-    for (final shape in available) {
-      for (int r = 0; r <= boardSize - shape.rows; r++) {
-        for (int c = 0; c <= boardSize - shape.cols; c++) {
-          if (canPlace(shape, r, c)) {
-            isGameOver = false;
-            return;
+    bool canPlaceAny = false;
+    for (final piece in currentPieces) {
+      if (piece == null) continue;
+
+      for (int r = 0; r < boardSize; r++) {
+        for (int c = 0; c < boardSize; c++) {
+          if (canPlace(piece, r, c)) {
+            canPlaceAny = true;
+            break;
           }
         }
+        if (canPlaceAny) break;
       }
+      if (canPlaceAny) break;
     }
 
-    // If no piece fits, game over!
-    isGameOver = true;
-    _stopTimer();
-    _saveHighScore();
+    if (!canPlaceAny && currentPieces.any((p) => p != null)) {
+      isGameOver = true;
+      _stopTimer();
+      _saveHighScore();
+    }
   }
 
   @override

@@ -7,7 +7,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('BlockBlastGame Logic Tests', () {
-    test('Initialization has clean 8x8 board, 3 pieces, level 1, and timer', () {
+    test('Initialization has clean 8x8 board, 3 pieces, level 1, timer, and bonus cells', () {
       final game = BlockBlastGame();
       expect(game.board.length, 8);
       expect(game.board[0].length, 8);
@@ -17,6 +17,7 @@ void main() {
       expect(game.remainingSeconds, 90);
       expect(game.isGameOver, false);
       expect(game.currentPieces.where((p) => p != null).length, 3);
+      expect(game.bonusCells.isNotEmpty, true, reason: 'Mystery bonus tiles should spawn');
       game.dispose();
     });
 
@@ -72,6 +73,41 @@ void main() {
       expect(game.lastBlast, isNotNull);
       expect(game.lastBlast!.clearedRows, contains(0));
       expect(game.lastBlast!.randomBonus, greaterThan(0));
+      game.dispose();
+    });
+
+    test('Clearing a row with a Mystery Bonus Tile awards special bonus points', () {
+      final game = BlockBlastGame();
+      // Place a mystery bonus tile at (2, 5)
+      game.bonusCells['2-5'] = const BonusTile(
+        id: 'gift',
+        label: 'Kado Segari',
+        icon: Icons.card_giftcard_rounded,
+        color: Colors.red,
+        bonusPoints: 150,
+      );
+
+      // Pre-fill row 2 with 7 blocks
+      for (int c = 0; c < 7; c++) {
+        game.board[2][c] = Colors.green;
+      }
+
+      const dot = BlockShape(
+        id: 'dot',
+        matrix: [[1]],
+        color: Colors.green,
+        icon: Icons.eco_rounded,
+        label: 'Sawi',
+      );
+      game.currentPieces[0] = dot;
+
+      final placed = game.placePiece(0, 2, 7);
+      expect(placed, true);
+
+      expect(game.lastBlast, isNotNull);
+      expect(game.lastBlast!.specialBonusPoints, 150);
+      expect(game.lastBlast!.collectedBonusTiles.length, 1);
+      expect(game.lastBlast!.collectedBonusTiles.first.label, 'Kado Segari');
       game.dispose();
     });
   });

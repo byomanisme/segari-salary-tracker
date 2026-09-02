@@ -74,8 +74,8 @@ class FloatingScoreText {
   });
 
   bool update(double dt) {
-    y -= 45 * dt; // floats upwards
-    life -= 1.3 * dt;
+    y -= 65 * dt; // floats quickly upwards
+    life -= 2.2 * dt; // vanishes smoothly within ~0.45s
     return life > 0;
   }
 }

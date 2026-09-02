@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'blast_particles.dart';
@@ -26,8 +27,9 @@ class _BlockBlastViewState extends State<BlockBlastView>
   int? _hoverRow;
   int? _hoverCol;
   int? _draggingPieceIndex;
-  final Set<String> _recentlyPlacedCells = {};
+  int? _lastHandledBlastTimestamp;
 
+  final Set<String> _recentlyPlacedCells = {};
   final BlastParticleManager _particleManager = BlastParticleManager();
   final GlobalKey _gridKey = GlobalKey();
   final GlobalKey _scoreBadgeKey = GlobalKey();
@@ -41,8 +43,8 @@ class _BlockBlastViewState extends State<BlockBlastView>
   late AnimationController _timerPulseController;
   late Animation<double> _timerPulseAnim;
 
-  late AnimationController _hintPulseController;
-  late Animation<double> _hintPulseAnim;
+  late AnimationController _bonusPulseController;
+  late Animation<double> _bonusPulseAnim;
 
   @override
   void initState() {
@@ -51,7 +53,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
 
     _comboAnimController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 450),
+      duration: const Duration(milliseconds: 400),
     );
     _comboScaleAnim = CurvedAnimation(
       parent: _comboAnimController,
@@ -62,7 +64,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
       vsync: this,
       duration: const Duration(milliseconds: 350),
     );
-    _scoreBounceAnim = Tween<double>(begin: 1.0, end: 1.32).animate(
+    _scoreBounceAnim = Tween<double>(begin: 1.0, end: 1.35).animate(
       CurvedAnimation(parent: _scoreBounceAnimController, curve: Curves.elasticOut),
     );
 
@@ -74,12 +76,12 @@ class _BlockBlastViewState extends State<BlockBlastView>
       CurvedAnimation(parent: _timerPulseController, curve: Curves.easeInOut),
     );
 
-    _hintPulseController = AnimationController(
+    _bonusPulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
-    _hintPulseAnim = Tween<double>(begin: 0.15, end: 0.45).animate(
-      CurvedAnimation(parent: _hintPulseController, curve: Curves.easeInOut),
+    _bonusPulseAnim = Tween<double>(begin: 0.85, end: 1.15).animate(
+      CurvedAnimation(parent: _bonusPulseController, curve: Curves.easeInOut),
     );
   }
 
@@ -89,18 +91,19 @@ class _BlockBlastViewState extends State<BlockBlastView>
     _comboAnimController.dispose();
     _scoreBounceAnimController.dispose();
     _timerPulseController.dispose();
-    _hintPulseController.dispose();
+    _bonusPulseController.dispose();
     _particleManager.dispose();
     super.dispose();
   }
 
   void _onGameUpdated() {
     final blast = widget.game.lastBlast;
-    if (blast != null) {
+    // FIX LOOPING: Trigger animation EXACTLY ONCE per blast timestamp!
+    if (blast != null && blast.timestamp != _lastHandledBlastTimestamp) {
+      _lastHandledBlastTimestamp = blast.timestamp;
       _comboAnimController.forward(from: 0.0);
       HapticFeedback.heavyImpact();
 
-      // Trigger particle blast at cleared rows and cols
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _triggerParticlesForBlast(blast);
       });
@@ -146,8 +149,10 @@ class _BlockBlastViewState extends State<BlockBlastView>
     }
 
     String label = blast.comboMessage;
-    if (blast.randomBonus > 0) {
-      label += ' (🎁 +${blast.randomBonus})';
+    if (blast.specialBonusPoints > 0) {
+      label += ' (🎁 +${blast.specialBonusPoints})';
+    } else if (blast.randomBonus > 0) {
+      label += ' (✨ +${blast.randomBonus})';
     }
 
     final RenderBox? scoreBox = _scoreBadgeKey.currentContext?.findRenderObject() as RenderBox?;
@@ -180,7 +185,6 @@ class _BlockBlastViewState extends State<BlockBlastView>
     if (piece == null) return;
 
     if (widget.game.canPlace(piece, row, col)) {
-      // 1. Calculate placed cell centers for placement impact shockwave animation
       final RenderBox? gridBox = _gridKey.currentContext?.findRenderObject() as RenderBox?;
       if (gridBox != null) {
         final size = gridBox.size;
@@ -199,10 +203,8 @@ class _BlockBlastViewState extends State<BlockBlastView>
           }
         }
 
-        // Trigger placement shockwave & dust sparks
         _particleManager.triggerPlacementEffectAt(centers, piece.color);
 
-        // Reset bouncy scale after 280ms
         Future.delayed(const Duration(milliseconds: 280), () {
           if (mounted) {
             setState(() {
@@ -241,7 +243,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.75),
+              color: Colors.black.withValues(alpha: 0.8),
               blurRadius: 30,
               offset: const Offset(0, 10),
             ),
@@ -250,21 +252,22 @@ class _BlockBlastViewState extends State<BlockBlastView>
         child: ClipRRect(
           borderRadius: BorderRadius.circular(24),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              // 1. Game Header (Level, Timer, Score, High Score)
+              // 1. Header (Level, Timer, Score, High Score, Actions)
               _buildHeader(game),
 
-              // 2. EXP Progress Bar
+              // 2. EXP Bar
               _buildExpBar(game),
 
-              // 3. Combo & Bonus Banner
-              _buildComboBanner(game),
+              // 3. Compact Combo Notification Toast (NO LAYOUT PUSH)
+              _buildComboToast(game),
 
-              // 4. 8x8 Board with Ghost Drag Preview & Placement Animations
+              // 4. 8x8 Board with Mystery Bonus Cells & Corrected Ghost Preview
               Expanded(
                 child: Center(
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     child: AspectRatio(
                       aspectRatio: 1.0,
                       child: _buildBoard(game),
@@ -273,17 +276,13 @@ class _BlockBlastViewState extends State<BlockBlastView>
                 ),
               ),
 
-              const SizedBox(height: 6),
-
-              // 5. Status / Instruction
+              // 5. Sleek Compact Instruction
               _buildInstructionText(),
 
-              const SizedBox(height: 6),
-
-              // 6. Piece Tray (3 Pieces with Drag & Drop + Segari Icons)
+              // 6. Piece Tray (Real block at finger touch, no weird offset!)
               Container(
-                height: 110,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                height: 105,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: const BoxDecoration(
                   color: Color(0xFF1E293B),
                   borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
@@ -301,7 +300,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
     final isUrgentTime = game.remainingSeconds <= 15;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
         border: Border(
@@ -388,6 +387,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
                         _draggingPieceIndex = null;
                         _hoverRow = null;
                         _hoverCol = null;
+                        _lastHandledBlastTimestamp = null;
                         game.initGame();
                       });
                     },
@@ -415,7 +415,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
             ],
           ),
 
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
 
           // Score & High Score Row
           Row(
@@ -428,24 +428,24 @@ class _BlockBlastViewState extends State<BlockBlastView>
                     scale: _scoreBounceAnim,
                     child: Container(
                       key: _scoreBadgeKey,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                       decoration: BoxDecoration(
                         color: const Color(0xFF0F172A),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: const Color(0xFF10B981).withValues(alpha: 0.5),
+                          color: const Color(0xFF10B981).withValues(alpha: 0.6),
                         ),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.flash_on, color: Color(0xFF10B981), size: 17),
+                          const Icon(Icons.flash_on, color: Color(0xFF10B981), size: 16),
                           const SizedBox(width: 4),
                           Text(
                             '${game.score}',
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w900,
-                              fontSize: 17,
+                              fontSize: 16,
                             ),
                           ),
                         ],
@@ -496,7 +496,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
 
   Widget _buildExpBar(BlockBlastGame game) {
     return Container(
-      height: 4,
+      height: 3,
       width: double.infinity,
       color: const Color(0xFF0F172A),
       child: FractionallySizedBox(
@@ -513,35 +513,30 @@ class _BlockBlastViewState extends State<BlockBlastView>
     );
   }
 
-  Widget _buildComboBanner(BlockBlastGame game) {
-    if (game.lastBlast == null) return const SizedBox(height: 22);
+  /// Compact Toast that never covers board blocks
+  Widget _buildComboToast(BlockBlastGame game) {
+    if (game.lastBlast == null) return const SizedBox(height: 6);
 
     final blast = game.lastBlast!;
-    return ScaleTransition(
-      scale: _comboScaleAnim,
-      child: Container(
-        margin: const EdgeInsets.only(top: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFF59E0B), Color(0xFFEF4444)],
-          ),
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFEF4444).withValues(alpha: 0.5),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 2),
+      child: ScaleTransition(
+        scale: _comboScaleAnim,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFF59E0B), Color(0xFFEF4444)],
             ),
-          ],
-        ),
-        child: Text(
-          '${blast.comboMessage} +${blast.pointsEarned} PTS (+${blast.bonusSeconds}s ⏱️)',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0.4,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            '${blast.comboMessage} +${blast.pointsEarned} PTS (+${blast.bonusSeconds}s ⏱️)',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
       ),
@@ -549,31 +544,26 @@ class _BlockBlastViewState extends State<BlockBlastView>
   }
 
   Widget _buildInstructionText() {
+    String text = '🎁 Kumpulkan ikon bonus di kotak untuk poin ekstra!';
+    Color textColor = const Color(0xFFFBBF24);
+
     if (_draggingPieceIndex != null) {
-      return const Text(
-        '🎯 Lepaskan balok ke bayangan hijau di kotak kosong!',
-        style: TextStyle(
-          color: Color(0xFF10B981),
-          fontSize: 11.5,
-          fontWeight: FontWeight.bold,
-        ),
-      );
+      text = '🎯 Letakkan balok tepat di bayangan kotak!';
+      textColor = const Color(0xFF10B981);
     } else if (_selectedPieceIndex != null) {
-      return const Text(
-        '👇 Ketuk kotak di papan untuk meletakkan balok terpilih',
+      text = '👇 Ketuk kotak di papan untuk meletakkan balok';
+      textColor = const Color(0xFF38BDF8);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Text(
+        text,
         style: TextStyle(
-          color: Color(0xFF38BDF8),
-          fontSize: 11.5,
+          color: textColor,
+          fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
-      );
-    }
-    return const Text(
-      '✨ Drag balok ke papan, lihat bayangannya & ledakkan baris!',
-      style: TextStyle(
-        color: Color(0xFF94A3B8),
-        fontSize: 11,
-        fontWeight: FontWeight.w500,
       ),
     );
   }
@@ -582,38 +572,20 @@ class _BlockBlastViewState extends State<BlockBlastView>
     final activePieceIndex = _draggingPieceIndex ?? _selectedPieceIndex;
     final activePiece = activePieceIndex != null ? game.currentPieces[activePieceIndex] : null;
 
-    // Detect Near-Clear rows/cols (7 of 8 cells full) for subtle hint glow
-    final almostFullRows = <int>{};
-    final almostFullCols = <int>{};
-    for (int r = 0; r < BlockBlastGame.boardSize; r++) {
-      int count = 0;
-      for (int c = 0; c < BlockBlastGame.boardSize; c++) {
-        if (game.board[r][c] != null) count++;
-      }
-      if (count == 7) almostFullRows.add(r);
-    }
-    for (int c = 0; c < BlockBlastGame.boardSize; c++) {
-      int count = 0;
-      for (int r = 0; r < BlockBlastGame.boardSize; r++) {
-        if (game.board[r][c] != null) count++;
-      }
-      if (count == 7) almostFullCols.add(c);
-    }
-
     return Container(
       key: _gridKey,
-      padding: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(5),
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFF38BDF8).withValues(alpha: 0.2),
+          color: const Color(0xFF38BDF8).withValues(alpha: 0.25),
           width: 1.5,
         ),
       ),
       child: Stack(
         children: [
-          // 8x8 Grid Tiles with DragTarget
+          // 8x8 Grid Tiles with Corrected DragTarget
           GridView.builder(
             physics: const NeverScrollableScrollPhysics(),
             itemCount: BlockBlastGame.boardSize * BlockBlastGame.boardSize,
@@ -627,6 +599,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
               final c = index % BlockBlastGame.boardSize;
               final cellColor = game.board[r][c];
               final isRecentlyPlaced = _recentlyPlacedCells.contains('$r-$c');
+              final bonusTile = game.bonusCells['$r-$c'];
 
               // Check if cell is in ghost preview
               bool isGhost = false;
@@ -648,25 +621,34 @@ class _BlockBlastViewState extends State<BlockBlastView>
                 }
               }
 
-              final isNearClearHint = cellColor == null && (almostFullRows.contains(r) || almostFullCols.contains(c));
-
               return DragTarget<int>(
                 onWillAcceptWithDetails: (details) {
+                  if (activePiece == null) return false;
+                  // REVERSE FIX: Finger touches cell (r, c).
+                  // Position the ghost shadow target ABOVE the finger so thumb does not cover board!
+                  final targetRow = (r - 1).clamp(0, BlockBlastGame.boardSize - activePiece.rows);
+                  final targetCol = (c - (activePiece.cols ~/ 2)).clamp(0, BlockBlastGame.boardSize - activePiece.cols);
+
                   setState(() {
-                    _hoverRow = r;
-                    _hoverCol = c;
+                    _hoverRow = targetRow;
+                    _hoverCol = targetCol;
                     _draggingPieceIndex = details.data;
                   });
                   return true;
                 },
                 onLeave: (_) {},
                 onAcceptWithDetails: (details) {
-                  _handlePlacement(details.data, r, c);
+                  final piece = game.currentPieces[details.data];
+                  if (piece != null) {
+                    final targetRow = (r - 1).clamp(0, BlockBlastGame.boardSize - piece.rows);
+                    final targetCol = (c - (piece.cols ~/ 2)).clamp(0, BlockBlastGame.boardSize - piece.cols);
+                    _handlePlacement(details.data, targetRow, targetCol);
+                  }
                 },
                 builder: (context, candidateData, rejectedData) {
                   return InkWell(
                     onTap: () {
-                      if (_selectedPieceIndex != null) {
+                      if (_selectedPieceIndex != null && activePiece != null) {
                         _handlePlacement(_selectedPieceIndex!, r, c);
                       }
                     },
@@ -677,7 +659,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
                       isValidGhost: isValidGhost,
                       ghostColor: ghostColor,
                       isRecentlyPlaced: isRecentlyPlaced,
-                      isNearClearHint: isNearClearHint,
+                      bonusTile: bonusTile,
                     ),
                   );
                 },
@@ -753,6 +735,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
                             _draggingPieceIndex = null;
                             _hoverRow = null;
                             _hoverCol = null;
+                            _lastHandledBlastTimestamp = null;
                             game.initGame();
                           });
                         },
@@ -773,7 +756,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
     required bool isValidGhost,
     required Color? ghostColor,
     required bool isRecentlyPlaced,
-    required bool isNearClearHint,
+    required BonusTile? bonusTile,
   }) {
     Color tileBg = const Color(0xFF0F172A);
     Color borderColor = Colors.white.withValues(alpha: 0.05);
@@ -783,14 +766,40 @@ class _BlockBlastViewState extends State<BlockBlastView>
       tileBg = cellColor;
       borderColor = Colors.white.withValues(alpha: 0.3);
       final iconData = BlockShape.getIconForColor(cellColor);
-      iconWidget = Icon(
-        iconData,
-        color: Colors.white.withValues(alpha: 0.9),
-        size: 14,
-      );
+
+      // If cell also has a captured Mystery Bonus, show a shining star badge!
+      if (bonusTile != null) {
+        iconWidget = Stack(
+          alignment: Alignment.center,
+          children: [
+            Icon(
+              iconData,
+              color: Colors.white.withValues(alpha: 0.75),
+              size: 13,
+            ),
+            Positioned(
+              top: 0,
+              right: 0,
+              child: ScaleTransition(
+                scale: _bonusPulseAnim,
+                child: Icon(
+                  bonusTile.icon,
+                  color: Colors.amber,
+                  size: 10,
+                ),
+              ),
+            ),
+          ],
+        );
+      } else {
+        iconWidget = Icon(
+          iconData,
+          color: Colors.white.withValues(alpha: 0.9),
+          size: 14,
+        );
+      }
     } else if (isGhost) {
       if (isValidGhost && ghostColor != null) {
-        // EXACT GHOST PREVIEW (Glowing translucent block with product icon)
         tileBg = ghostColor.withValues(alpha: 0.45);
         borderColor = ghostColor.withValues(alpha: 0.9);
         final iconData = BlockShape.getIconForColor(ghostColor);
@@ -800,7 +809,6 @@ class _BlockBlastViewState extends State<BlockBlastView>
           size: 13,
         );
       } else {
-        // Invalid collision preview
         tileBg = const Color(0xFFEF4444).withValues(alpha: 0.35);
         borderColor = const Color(0xFFEF4444);
         iconWidget = const Icon(
@@ -809,10 +817,31 @@ class _BlockBlastViewState extends State<BlockBlastView>
           size: 12,
         );
       }
-    } else if (isNearClearHint) {
-      // Subtle hint glow on almost-full rows/cols
-      tileBg = const Color(0xFFF59E0B).withValues(alpha: 0.08);
-      borderColor = const Color(0xFFF59E0B).withValues(alpha: _hintPulseAnim.value);
+    } else if (bonusTile != null) {
+      // Mystery Bonus Tile on an empty cell!
+      tileBg = bonusTile.color.withValues(alpha: 0.12);
+      borderColor = bonusTile.color.withValues(alpha: 0.45);
+      iconWidget = ScaleTransition(
+        scale: _bonusPulseAnim,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              bonusTile.icon,
+              color: bonusTile.color,
+              size: 14,
+            ),
+            Text(
+              '+${bonusTile.bonusPoints}',
+              style: TextStyle(
+                color: bonusTile.color,
+                fontSize: 7,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     final tile = AnimatedContainer(
@@ -832,19 +861,25 @@ class _BlockBlastViewState extends State<BlockBlastView>
                   offset: const Offset(0, 1),
                 ),
               ]
-            : (isGhost && isValidGhost && ghostColor != null)
+            : (bonusTile != null && cellColor == null)
                 ? [
                     BoxShadow(
-                      color: ghostColor.withValues(alpha: 0.35),
-                      blurRadius: 8,
+                      color: bonusTile.color.withValues(alpha: 0.3),
+                      blurRadius: 6,
                     ),
                   ]
-                : null,
+                : (isGhost && isValidGhost && ghostColor != null)
+                    ? [
+                        BoxShadow(
+                          color: ghostColor.withValues(alpha: 0.35),
+                          blurRadius: 8,
+                        ),
+                      ]
+                    : null,
       ),
       child: Center(child: iconWidget),
     );
 
-    // Animasi meletakkan block (Bouncy Scale Impact)
     if (isRecentlyPlaced) {
       return TweenAnimationBuilder<double>(
         tween: Tween(begin: 0.5, end: 1.0),
@@ -893,16 +928,10 @@ class _BlockBlastViewState extends State<BlockBlastView>
             borderRadius: BorderRadius.circular(12),
             child: Draggable<int>(
               data: index,
-              // Drag feedback with vertical thumb offset so thumb doesn't obscure piece!
+              // REAL BLOCK AT FINGER TOUCH: NO WEIRD -65PX OFFSET!
               feedback: Material(
                 color: Colors.transparent,
-                child: Transform.translate(
-                  offset: const Offset(0, -65),
-                  child: Transform.scale(
-                    scale: 1.15,
-                    child: _buildShapeWidget(piece, isPreview: true),
-                  ),
-                ),
+                child: _buildShapeWidget(piece, isPreview: true, cellSize: 22.0),
               ),
               childWhenDragging: Opacity(
                 opacity: 0.25,
@@ -927,7 +956,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
                 duration: const Duration(milliseconds: 150),
                 curve: Curves.easeOut,
                 child: Container(
-                  padding: const EdgeInsets.all(5),
+                  padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
                     color: isSelected
                         ? const Color(0xFF38BDF8).withValues(alpha: 0.15)
@@ -960,9 +989,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
     );
   }
 
-  Widget _buildShapeWidget(BlockShape shape, {bool isPreview = false}) {
-    const double cellSize = 16.0;
-
+  Widget _buildShapeWidget(BlockShape shape, {bool isPreview = false, double cellSize = 15.0}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: List.generate(shape.rows, (r) {
@@ -993,7 +1020,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
                       child: Icon(
                         shape.icon,
                         color: Colors.white.withValues(alpha: 0.9),
-                        size: 9.5,
+                        size: cellSize * 0.6,
                       ),
                     )
                   : null,
