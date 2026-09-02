@@ -43,13 +43,13 @@ class AppUpdateInfo {
 }
 
 class UpdateService {
-  static const String currentVersion = '1.3.1';
-  static const int currentBuildNumber = 14;
+  static const String currentVersion = '1.3.5';
+  static const int currentBuildNumber = 18;
 
   // Live remote update endpoint on user domain
   static const String manifestUrl = 'https://lukmanhakim.id/apk/version.json';
   static const String defaultDownloadUrl =
-      'https://lukmanhakim.id/apk/SegariSalaryTracker-v1.3.1.apk';
+      'https://lukmanhakim.id/apk/SegariSalaryTracker-v1.3.5.apk';
 
   static const String _keyLastSeenVersion = 'segari_last_seen_app_version';
   static const String _keyLastSeenBuild = 'segari_last_seen_build_number';
@@ -57,10 +57,12 @@ class UpdateService {
 
   // Latest Release Notes for current version (shown on first launch after update)
   static final List<String> currentWhatsNewList = [
-    '🤖 Fitur Sinkronisasi & Analisis AI: Kirim data riil HP ke Antigravity AI di PC dengan 1 klik untuk analisis mendalam performa dan gaji.',
-    '📱 Card Target SKU & Denda Ringkas: Tampilan homescreen lebih ramping, sleek, dan nyaman dipandang dengan pintasan ke detail lengkap.',
-    '🎨 Kalender Contribution Berwarna Per Bulan: Tanggal berwarna shift hanya muncul di bulan aktif, dilengkapi garis pemisah antar bulan.',
-    '🧹 Pembersihan Halaman Target & Denda: Menghapus card riwayat redundan agar antarmuka lebih bersih dan teratur.',
+    '🐛 Cameo Ulat Sayur & Ular Segari: Maskot lucu muncul di sela kotak kosong, ketuk untuk klaim bonus poin kejutan!',
+    '🎯 Presisi Drag & Drop Sempurna: Balok menempel pas di jempol dan bayangan target berada jauh di atasnya tanpa terhalang jari.',
+    '💥 Animasi Splash Outline Bentuk Balok: Kilatan garis neon persis bentuk balok saat dipasang & poin meluncur ke total skor.',
+    '🥬 Ikon Sembako Asli Kalender Segari: Menggunakan produk riil Segari (Brokoli, Wortel, Tomat, Daging, Salmon, dll).',
+    '💡 Ensiklopedia Tips, Trik & Fun Fact Segari: Tips segar penyimpanan dan nutrisi bahan Segari berganti setiap kali balok dipasang.',
+    '🛡️ Perbaikan Bug Tuntas: Fix balok tertimpa, fix kotak bawah terpotong, fix looping level up, dan akurasi game over.',
   ];
 
   /// Check if the user just updated the app to show "What's New"

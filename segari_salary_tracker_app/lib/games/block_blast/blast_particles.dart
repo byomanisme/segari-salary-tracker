@@ -56,6 +56,24 @@ class ShockwaveRing {
   }
 }
 
+/// Efek splash outline yang persis mengikuti bentuk balok yang baru dipasang
+class ShapeOutlineSplash {
+  final List<Rect> cellRects;
+  final Color color;
+  double life; // 1.0 to 0.0
+
+  ShapeOutlineSplash({
+    required this.cellRects,
+    required this.color,
+    this.life = 1.0,
+  });
+
+  bool update(double dt) {
+    life -= 3.2 * dt; // disappears in ~300ms
+    return life > 0;
+  }
+}
+
 class FloatingScoreText {
   String text;
   double x;
@@ -104,7 +122,7 @@ class FlyingScoreBadge {
 
   Offset get currentPos {
     final t = progress.clamp(0.0, 1.0);
-    // Quadratic Bezier curve: p(t) = (1-t)^2 * p0 + 2(1-t)t * p1 + t^2 * p2
+    // Quadratic Bezier curve
     final p0 = startPos;
     final p1 = controlPoint;
     final p2 = targetPos;
@@ -114,7 +132,7 @@ class FlyingScoreBadge {
   }
 
   bool update(double dt) {
-    progress += 1.35 * dt; // ~0.7s journey
+    progress += 1.45 * dt; // ~0.65s journey
     if (progress >= 1.0) {
       onArrival?.call();
       return false; // finished
@@ -178,6 +196,7 @@ class _BlastParticleOverlayState extends State<BlastParticleOverlay>
                   painter: BlastParticlePainter(
                     particles: widget.manager.particles,
                     shockwaves: widget.manager.shockwaves,
+                    outlineSplashes: widget.manager.outlineSplashes,
                     floatingTexts: widget.manager.floatingTexts,
                     flyingBadges: widget.manager.flyingBadges,
                   ),
@@ -194,38 +213,69 @@ class _BlastParticleOverlayState extends State<BlastParticleOverlay>
 class BlastParticleManager extends ChangeNotifier {
   final List<BlastParticle> particles = [];
   final List<ShockwaveRing> shockwaves = [];
+  final List<ShapeOutlineSplash> outlineSplashes = [];
   final List<FloatingScoreText> floatingTexts = [];
   final List<FlyingScoreBadge> flyingBadges = [];
   final Random _random = Random();
 
-  /// Animasi ketika meletakkan balok (Placement Impact Animation)
-  void triggerPlacementEffectAt(List<Offset> cellCenters, Color color) {
-    for (final center in cellCenters) {
-      shockwaves.add(
-        ShockwaveRing(
-          x: center.dx,
-          y: center.dy,
-          radius: 4,
-          maxRadius: 28,
-          color: color,
-        ),
-      );
+  /// Animasi ketika meletakkan balok dengan outline splash persis bentuk balok
+  void triggerPlacementSplash({
+    required List<Rect> cellRects,
+    required List<Offset> cellCenters,
+    required Color color,
+    required int points,
+    required Offset targetScorePos,
+    VoidCallback? onScoreReached,
+  }) {
+    // 1. Expanding neon outline splash of the EXACT placed shape!
+    outlineSplashes.add(
+      ShapeOutlineSplash(
+        cellRects: cellRects,
+        color: color,
+      ),
+    );
 
-      for (int i = 0; i < 5; i++) {
+    // 2. Small burst of sparkle dust at each cell center
+    for (final center in cellCenters) {
+      for (int i = 0; i < 3; i++) {
         final angle = _random.nextDouble() * 2 * pi;
-        final speed = 1.2 + _random.nextDouble() * 2.5;
+        final speed = 1.0 + _random.nextDouble() * 2.0;
         particles.add(
           BlastParticle(
             x: center.dx,
             y: center.dy,
             vx: cos(angle) * speed,
             vy: sin(angle) * speed,
-            size: 2.5 + _random.nextDouble() * 2.0,
+            size: 2.5,
             color: color,
+            life: 0.45,
           ),
         );
       }
     }
+
+    // 3. Placement points directly flying from placed shape center to Total Score!
+    if (cellCenters.isNotEmpty && points > 0) {
+      double avgX = 0;
+      double avgY = 0;
+      for (final c in cellCenters) {
+        avgX += c.dx;
+        avgY += c.dy;
+      }
+      avgX /= cellCenters.length;
+      avgY /= cellCenters.length;
+
+      flyingBadges.add(
+        FlyingScoreBadge(
+          text: '+$points',
+          startPos: Offset(avgX, avgY),
+          targetPos: targetScorePos,
+          color: color,
+          onArrival: onScoreReached,
+        ),
+      );
+    }
+
     notifyListeners();
   }
 
@@ -238,7 +288,6 @@ class BlastParticleManager extends ChangeNotifier {
     required Offset targetScorePos,
     VoidCallback? onScoreReached,
   }) {
-    // 1. Spawn particles and shockwaves from each cleared cell
     for (int i = 0; i < cellCenters.length; i++) {
       final center = cellCenters[i];
       final color = colors.isNotEmpty ? colors[i % colors.length] : const Color(0xFF10B981);
@@ -253,24 +302,23 @@ class BlastParticleManager extends ChangeNotifier {
         ),
       );
 
-      final count = 8 + _random.nextInt(5);
+      final count = 7 + _random.nextInt(4);
       for (int k = 0; k < count; k++) {
         final angle = _random.nextDouble() * 2 * pi;
-        final speed = 2.5 + _random.nextDouble() * 5.5;
+        final speed = 2.2 + _random.nextDouble() * 5.0;
         particles.add(
           BlastParticle(
             x: center.dx,
             y: center.dy,
             vx: cos(angle) * speed,
             vy: sin(angle) * speed - 1.8,
-            size: 3.5 + _random.nextDouble() * 3.5,
+            size: 3.5 + _random.nextDouble() * 3.0,
             color: color,
           ),
         );
       }
     }
 
-    // 2. Spawn floating banner & flying score badge from the blast center to total score
     if (cellCenters.isNotEmpty) {
       double avgX = 0;
       double avgY = 0;
@@ -282,16 +330,6 @@ class BlastParticleManager extends ChangeNotifier {
       avgY /= cellCenters.length;
       final startCenter = Offset(avgX, avgY);
 
-      floatingTexts.add(
-        FloatingScoreText(
-          text: comboText,
-          x: avgX,
-          y: avgY,
-          color: const Color(0xFFFBBF24),
-        ),
-      );
-
-      // Flying score badge directly traveling to total score!
       flyingBadges.add(
         FlyingScoreBadge(
           text: '+$points',
@@ -302,6 +340,46 @@ class BlastParticleManager extends ChangeNotifier {
         ),
       );
     }
+
+    notifyListeners();
+  }
+
+  /// Perayaan interaksi Cameo Ulat/Ular Segari
+  void triggerCameoCelebration(Offset center, String message) {
+    shockwaves.add(
+      ShockwaveRing(
+        x: center.dx,
+        y: center.dy,
+        radius: 8,
+        maxRadius: 40,
+        color: const Color(0xFF84CC16),
+      ),
+    );
+
+    for (int i = 0; i < 16; i++) {
+      final angle = _random.nextDouble() * 2 * pi;
+      final speed = 1.8 + _random.nextDouble() * 3.5;
+      particles.add(
+        BlastParticle(
+          x: center.dx,
+          y: center.dy,
+          vx: cos(angle) * speed,
+          vy: sin(angle) * speed - 1.0,
+          size: 3.0,
+          color: i % 2 == 0 ? const Color(0xFF84CC16) : const Color(0xFFFBBF24),
+          life: 0.6,
+        ),
+      );
+    }
+
+    floatingTexts.add(
+      FloatingScoreText(
+        text: message,
+        x: center.dx,
+        y: center.dy - 10,
+        color: const Color(0xFFFBBF24),
+      ),
+    );
 
     notifyListeners();
   }
@@ -348,12 +426,12 @@ class BlastParticleManager extends ChangeNotifier {
   void update(double dt) {
     if (particles.isEmpty &&
         shockwaves.isEmpty &&
+        outlineSplashes.isEmpty &&
         floatingTexts.isEmpty &&
         flyingBadges.isEmpty) {
       return;
     }
 
-    // Add trailing sparkle dust behind each flying score badge
     for (final badge in flyingBadges) {
       final pos = badge.currentPos;
       particles.add(
@@ -364,13 +442,14 @@ class BlastParticleManager extends ChangeNotifier {
           vy: (_random.nextDouble() - 0.5) * 1.5,
           size: 2.5,
           color: const Color(0xFFFBBF24),
-          life: 0.4,
+          life: 0.35,
         ),
       );
     }
 
     particles.removeWhere((p) => !p.update(dt));
     shockwaves.removeWhere((s) => !s.update(dt));
+    outlineSplashes.removeWhere((o) => !o.update(dt));
     floatingTexts.removeWhere((t) => !t.update(dt));
     flyingBadges.removeWhere((b) => !b.update(dt));
     notifyListeners();
@@ -380,19 +459,46 @@ class BlastParticleManager extends ChangeNotifier {
 class BlastParticlePainter extends CustomPainter {
   final List<BlastParticle> particles;
   final List<ShockwaveRing> shockwaves;
+  final List<ShapeOutlineSplash> outlineSplashes;
   final List<FloatingScoreText> floatingTexts;
   final List<FlyingScoreBadge> flyingBadges;
 
   BlastParticlePainter({
     required this.particles,
     required this.shockwaves,
+    required this.outlineSplashes,
     required this.floatingTexts,
     required this.flyingBadges,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    // 1. Draw Shockwave Rings
+    // 1. Draw Shape Outline Splashes (matching exact placed polyomino!)
+    for (final splash in outlineSplashes) {
+      final alpha = splash.life.clamp(0.0, 1.0);
+      final expansion = (1.0 - splash.life) * 10.0;
+      final strokePaint = Paint()
+        ..color = splash.color.withValues(alpha: alpha * 0.9)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5 * splash.life;
+
+      final glowPaint = Paint()
+        ..color = splash.color.withValues(alpha: alpha * 0.4)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 6.0 * splash.life
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+
+      for (final rect in splash.cellRects) {
+        final rrect = RRect.fromRectAndRadius(
+          rect.inflate(expansion),
+          const Radius.circular(6),
+        );
+        canvas.drawRRect(rrect, glowPaint);
+        canvas.drawRRect(rrect, strokePaint);
+      }
+    }
+
+    // 2. Draw Shockwave Rings
     for (final s in shockwaves) {
       final ringPaint = Paint()
         ..color = s.color.withValues(alpha: s.life.clamp(0.0, 1.0) * 0.7)
@@ -401,20 +507,19 @@ class BlastParticlePainter extends CustomPainter {
       canvas.drawCircle(Offset(s.x, s.y), s.radius, ringPaint);
     }
 
-    // 2. Draw Particles
+    // 3. Draw Particles
     final paint = Paint()..style = PaintingStyle.fill;
     for (final p in particles) {
       paint.color = p.color.withValues(alpha: p.opacity);
       canvas.drawCircle(Offset(p.x, p.y), p.size, paint);
 
-      // White core
       final corePaint = Paint()
         ..color = Colors.white.withValues(alpha: p.opacity * 0.85)
         ..style = PaintingStyle.fill;
       canvas.drawCircle(Offset(p.x, p.y), p.size * 0.45, corePaint);
     }
 
-    // 3. Draw Floating Combo & Level Up Text
+    // 4. Draw Floating Text (Fades out quickly)
     for (final t in floatingTexts) {
       final textSpan = TextSpan(
         text: t.text,
@@ -427,10 +532,6 @@ class BlastParticlePainter extends CustomPainter {
               color: Colors.black.withValues(alpha: 0.9),
               blurRadius: 8,
               offset: const Offset(0, 2),
-            ),
-            Shadow(
-              color: const Color(0xFFEF4444).withValues(alpha: 0.6),
-              blurRadius: 14,
             ),
           ],
         ),
@@ -448,7 +549,7 @@ class BlastParticlePainter extends CustomPainter {
       textPainter.paint(canvas, offset);
     }
 
-    // 4. Draw Flying Score Badges (Moving towards Total Score!)
+    // 5. Draw Flying Score Badges
     for (final badge in flyingBadges) {
       final pos = badge.currentPos;
       final t = badge.progress.clamp(0.0, 1.0);
@@ -486,27 +587,23 @@ class BlastParticlePainter extends CustomPainter {
         const Radius.circular(16),
       );
 
-      // Glowing shadow
       final glowPaint = Paint()
         ..color = const Color(0xFF10B981).withValues(alpha: 0.7)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10);
       canvas.drawRRect(rect, glowPaint);
 
-      // Gradient background
       final bgPaint = Paint()
         ..shader = const LinearGradient(
           colors: [Color(0xFF0284C7), Color(0xFF10B981)],
         ).createShader(rect.outerRect);
       canvas.drawRRect(rect, bgPaint);
 
-      // Gold border
       final borderPaint = Paint()
         ..color = const Color(0xFFFBBF24)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5;
       canvas.drawRRect(rect, borderPaint);
 
-      // Draw text centered
       textPainter.paint(
         canvas,
         Offset(-textPainter.width / 2, -textPainter.height / 2),

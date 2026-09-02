@@ -27,8 +27,9 @@ void main() {
         id: 'dot',
         matrix: [[1]],
         color: Colors.amber,
+        emoji: '🌽',
         icon: Icons.wb_sunny_rounded,
-        label: 'Lemon',
+        label: 'Jagung Manis',
       );
       game.currentPieces[0] = dotShape;
 
@@ -46,25 +47,23 @@ void main() {
 
     test('Full row fills and triggers BLAST line clear and combo', () {
       final game = BlockBlastGame();
-      // Pre-fill row 0 with 7 blocks
       for (int c = 0; c < 7; c++) {
         game.board[0][c] = Colors.blue;
       }
 
-      // 8th block to complete row 0
       const dot = BlockShape(
         id: 'dot',
         matrix: [[1]],
         color: Colors.blue,
-        icon: Icons.water_drop_rounded,
-        label: 'Air Mineral',
+        emoji: '🥩',
+        icon: Icons.restaurant_rounded,
+        label: 'Daging Sapi',
       );
       game.currentPieces[0] = dot;
 
       final placed = game.placePiece(0, 0, 7);
       expect(placed, true);
 
-      // Row 0 should be cleared (all nulls)!
       for (int c = 0; c < 8; c++) {
         expect(game.board[0][c], isNull, reason: 'Col $c should be cleared');
       }
@@ -78,7 +77,6 @@ void main() {
 
     test('Clearing a row with a Mystery Bonus Tile awards special bonus points', () {
       final game = BlockBlastGame();
-      // Place a mystery bonus tile at (2, 5)
       game.bonusCells['2-5'] = const BonusTile(
         id: 'gift',
         label: 'Kado Segari',
@@ -87,7 +85,6 @@ void main() {
         bonusPoints: 150,
       );
 
-      // Pre-fill row 2 with 7 blocks
       for (int c = 0; c < 7; c++) {
         game.board[2][c] = Colors.green;
       }
@@ -96,8 +93,9 @@ void main() {
         id: 'dot',
         matrix: [[1]],
         color: Colors.green,
+        emoji: '🥦',
         icon: Icons.eco_rounded,
-        label: 'Sawi',
+        label: 'Brokoli',
       );
       game.currentPieces[0] = dot;
 
@@ -108,6 +106,24 @@ void main() {
       expect(game.lastBlast!.specialBonusPoints, 150);
       expect(game.lastBlast!.collectedBonusTiles.length, 1);
       expect(game.lastBlast!.collectedBonusTiles.first.label, 'Kado Segari');
+      game.dispose();
+    });
+
+    test('Cameo Mascot interaction awards bonus points', () {
+      final game = BlockBlastGame();
+      game.currentCameo = const CameoMascot(
+        skinId: 'caterpillar',
+        name: 'Ulat Sayur Segari',
+        r: 3,
+        c: 3,
+        bonusPoints: 75,
+        emoji: '🐛',
+      );
+
+      final pts = game.interactCameo();
+      expect(pts, 75);
+      expect(game.score, 75);
+      expect(game.currentCameo, isNull);
       game.dispose();
     });
   });

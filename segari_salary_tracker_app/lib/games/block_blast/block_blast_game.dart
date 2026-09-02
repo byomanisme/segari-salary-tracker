@@ -51,6 +51,24 @@ class BonusTile {
   ];
 }
 
+class CameoMascot {
+  final String skinId; // 'caterpillar' or 'snake'
+  final String name;
+  final int r;
+  final int c;
+  final int bonusPoints;
+  final String emoji;
+
+  const CameoMascot({
+    required this.skinId,
+    required this.name,
+    required this.r,
+    required this.c,
+    required this.bonusPoints,
+    required this.emoji,
+  });
+}
+
 class BlastResult {
   final List<int> clearedRows;
   final List<int> clearedCols;
@@ -97,6 +115,37 @@ class BlockBlastGame extends ChangeNotifier {
   // Mystery Bonus Cells on empty board cells (key: "r-c")
   final Map<String, BonusTile> bonusCells = {};
 
+  // Cameo Mascot (Ulat Sayur & Ular Segari)
+  CameoMascot? currentCameo;
+  Timer? _cameoTimer;
+  Timer? _cameoDismissTimer;
+
+  // Dynamic Segari Fun Facts Database
+  static const List<String> segariFunFacts = [
+    '🥦 Brokoli kaya vitamin C & sulforaphane, simpan di chiller dalam wadah tertutup agar tetap renyah!',
+    '🥕 Wortel Brastagi Segari manis alami karena dipanen dari dataran tinggi tanah vulkanis gembur.',
+    '🐟 Ikan Salmon Segari kaya Omega-3, simpan beku di freezer maksimal -18°C untuk kesegaran optimal.',
+    '🥬 Tips: Rendam selada yang agak layu di air es selama 5 menit agar garing dan segar kembali!',
+    '🥩 Daging Sapi Segari diproses rantai dingin (cold chain) higienis tanpa bahan pengawet.',
+    '🍌 Pisang Cavendish menghasilkan gas etilen alami, jangan disimpan dekat sayur hijau agar sayur awet.',
+    '🍅 Tomat merah kaya antioksidan likopen yang makin mudah diserap tubuh saat dimasak.',
+    '🌽 Jagung manis Segari memiliki kadar gula alami tinggi saat baru dipetik dari ladang mitra.',
+    '🍆 Terong ungu Segari kaya nasunin pada kulitnya yang bermanfaat melindungi sel-sel tubuh.',
+    '🍗 Ayam potong Segari diproses bersih halal dan segera didinginkan di ruang steril pendingin.',
+    '🦐 Udang Vaname Segari berdaging kenyal manis, simpan di chiller dialasi es batu serut.',
+    '🍊 Jeruk Segari diperas langsung memberi asupan 100% vitamin C harian untuk imunitas tubuh.',
+    '🍎 Apel Fuji Segari renyah manis, simpan di laci bawah kulkas agar kelembapannya terjaga.',
+    '🍇 Anggur merah Segari kaya resveratrol, cuci hanya saat hendak dimakan agar tidak mudah lembek.',
+    '🍓 Stroberi Ciwidey Segari harum manis, jangan buang tangkainya sebelum dicuci agar air tak masuk.',
+    '🧅 Bawang merah Brebes Segari beraroma tajam harum khas yang bikin aneka masakan jadi sedap.',
+    '🧄 Bawang putih Kating Segari memiliki siung padat dengan kandungan allicin alami tinggi.',
+    '🥔 Kentang Dieng Segari pulen alami, jangan simpan di kulkas agar patinya tidak berubah jadi gula.',
+    '🍄 Jamur tiram segar Segari kaya serat beta-glukan, simpan dalam kantong kertas di kulkas.',
+    '🫑 Paprika merah Segari mengandung vitamin C tiga kali lebih banyak dibanding buah jeruk!',
+    '🥚 Telur Omega-3 Segari memiliki kuning telur jingga cerah kaya nutrisi untuk sarapan bertenaga.',
+  ];
+  String currentFunFact = segariFunFacts[0];
+
   // Level & EXP System
   int level = 1;
   int currentExp = 0;
@@ -139,6 +188,7 @@ class BlockBlastGame extends ChangeNotifier {
       (_) => List.generate(boardSize, (_) => null),
     );
     bonusCells.clear();
+    currentCameo = null;
     score = 0;
     combo = 0;
     level = 1;
@@ -148,12 +198,15 @@ class BlockBlastGame extends ChangeNotifier {
     remainingSeconds = initialTimerSeconds;
     isGameOver = false;
     lastBlast = null;
+    currentFunFact = segariFunFacts[_random.nextInt(segariFunFacts.length)];
 
     _stopTimer();
+    _stopCameoTimer();
     _loadHighScore();
     _refillPieces();
     _spawnBonusTiles(3);
     startTimer();
+    _startCameoTimer();
   }
 
   void _spawnBonusTiles(int count) {
@@ -181,10 +234,80 @@ class BlockBlastGame extends ChangeNotifier {
         if (board[r][c] == null) emptyCount++;
       }
     }
-    // Maintain 2 to 3 bonus tiles if enough empty space exists
     if (bonusCells.length < 3 && emptyCount > 5) {
       _spawnBonusTiles(3 - bonusCells.length);
     }
+  }
+
+  // --- Cameo Mascots (Ulat Sayur 🐛 & Ular Hijau 🐍) ---
+  void _startCameoTimer() {
+    _stopCameoTimer();
+    // Spawn cameo mascot every 18 to 25 seconds
+    final delay = 18 + _random.nextInt(8);
+    _cameoTimer = Timer(Duration(seconds: delay), _spawnCameo);
+  }
+
+  void _stopCameoTimer() {
+    _cameoTimer?.cancel();
+    _cameoTimer = null;
+    _cameoDismissTimer?.cancel();
+    _cameoDismissTimer = null;
+  }
+
+  void _spawnCameo() {
+    if (isGameOver) return;
+
+    final emptyCells = <Point<int>>[];
+    for (int r = 0; r < boardSize; r++) {
+      for (int c = 0; c < boardSize; c++) {
+        if (board[r][c] == null && !bonusCells.containsKey('$r-$c')) {
+          emptyCells.add(Point(r, c));
+        }
+      }
+    }
+
+    if (emptyCells.isNotEmpty) {
+      final pt = emptyCells[_random.nextInt(emptyCells.length)];
+      final isCaterpillar = _random.nextBool();
+      currentCameo = CameoMascot(
+        skinId: isCaterpillar ? 'caterpillar' : 'snake',
+        name: isCaterpillar ? 'Ulat Sayur Segari' : 'Ular Hijau Segari',
+        r: pt.x,
+        c: pt.y,
+        bonusPoints: 50 + _random.nextInt(4) * 25, // 50, 75, 100, 125
+        emoji: isCaterpillar ? '🐛' : '🐍',
+      );
+      notifyListeners();
+
+      // Cameo stays on the cell for 7 seconds then crawls away
+      _cameoDismissTimer?.cancel();
+      _cameoDismissTimer = Timer(const Duration(seconds: 7), () {
+        if (currentCameo != null) {
+          currentCameo = null;
+          notifyListeners();
+          _startCameoTimer();
+        }
+      });
+    } else {
+      _startCameoTimer();
+    }
+  }
+
+  /// Interact with cameo mascot when tapped
+  int? interactCameo() {
+    if (currentCameo == null) return null;
+
+    final pts = currentCameo!.bonusPoints;
+    score += pts;
+    _addExp(pts);
+    _saveHighScore();
+
+    currentCameo = null;
+    _cameoDismissTimer?.cancel();
+    notifyListeners();
+
+    _startCameoTimer();
+    return pts;
   }
 
   void startTimer() {
@@ -196,6 +319,7 @@ class BlockBlastGame extends ChangeNotifier {
         notifyListeners();
       } else {
         _stopTimer();
+        _stopCameoTimer();
         isGameOver = true;
         _saveHighScore();
         notifyListeners();
@@ -234,17 +358,20 @@ class BlockBlastGame extends ChangeNotifier {
 
   void _addExp(int amount) {
     currentExp += amount;
-    hasLevelUp = false;
 
     while (currentExp >= expToNextLevel) {
       currentExp -= expToNextLevel;
       level++;
       expToNextLevel = (expToNextLevel * 1.4).round();
-      remainingSeconds += 15; // Bonus 15 seconds for Level Up!
+      remainingSeconds += 15;
       final lvlBonus = level * 150;
       score += lvlBonus;
       hasLevelUp = true;
     }
+  }
+
+  void consumeLevelUp() {
+    hasLevelUp = false;
   }
 
   bool canPlace(BlockShape shape, int startRow, int startCol) {
@@ -258,6 +385,8 @@ class BlockBlastGame extends ChangeNotifier {
         if (shape.matrix[r][c] == 1) {
           final targetR = startRow + r;
           final targetC = startCol + c;
+          if (targetR >= boardSize || targetC >= boardSize) return false;
+          // STRICT NO-OVERWRITE: cell must be completely null
           if (board[targetR][targetC] != null) {
             return false;
           }
@@ -273,18 +402,27 @@ class BlockBlastGame extends ChangeNotifier {
     final shape = currentPieces[pieceIndex];
     if (shape == null) return false;
 
+    // Strict validation: NEVER place if canPlace is false
     if (!canPlace(shape, startRow, startCol)) return false;
 
-    // 1. Place blocks onto board
+    // If a cameo was sitting on one of the placed cells, collect it automatically!
     for (int r = 0; r < shape.rows; r++) {
       for (int c = 0; c < shape.cols; c++) {
         if (shape.matrix[r][c] == 1) {
-          board[startRow + r][startCol + c] = shape.color;
+          final targetR = startRow + r;
+          final targetC = startCol + c;
+          if (currentCameo != null && currentCameo!.r == targetR && currentCameo!.c == targetC) {
+            interactCameo();
+          }
+          board[targetR][targetC] = shape.color;
         }
       }
     }
 
-    // Award placement score with occasional lucky bonus (25% chance)
+    // Update dynamic Fun Fact on every block placed!
+    currentFunFact = segariFunFacts[_random.nextInt(segariFunFacts.length)];
+
+    // Award placement score with lucky bonus (25% chance)
     int basePlacedPoints = shape.blockCount * 10;
     int randomPlacementBonus = (_random.nextInt(4) == 0) ? (_random.nextInt(5) + 1) * 15 : 0;
     int totalPlaced = basePlacedPoints + randomPlacementBonus;
@@ -326,7 +464,7 @@ class BlockBlastGame extends ChangeNotifier {
       final baseBonus = totalLines * 100;
       final comboBonus = combo * 50;
 
-      // Check for Mystery Bonus Tiles in the cleared lines!
+      // Check for Mystery Bonus Tiles in the cleared lines
       int specialBonusPoints = 0;
       final collectedTiles = <BonusTile>[];
       final clearedKeys = <String>{};
@@ -355,7 +493,6 @@ class BlockBlastGame extends ChangeNotifier {
         }
       }
 
-      // Random lucky bonus points on every line blast (25 to 150 points)
       final randomBonusPoints = (_random.nextInt(6) + 1) * 25;
 
       for (final r in rowsToClear) {
@@ -369,7 +506,7 @@ class BlockBlastGame extends ChangeNotifier {
         }
       }
 
-      // Check if board is 100% clean (Perfect Clear bonus!)
+      // Check if board is 100% clean (Perfect Clear bonus)
       bool isPerfect = true;
       for (int r = 0; r < boardSize; r++) {
         for (int c = 0; c < boardSize; c++) {
@@ -387,7 +524,6 @@ class BlockBlastGame extends ChangeNotifier {
       score += totalBlastPoints;
       _addExp(totalBlastPoints);
 
-      // Extra time bonus for line blast! (+5 seconds per line cleared)
       final bonusTime = totalLines * 5 + (isPerfect ? 15 : 0);
       remainingSeconds += bonusTime;
 
@@ -420,7 +556,6 @@ class BlockBlastGame extends ChangeNotifier {
         isPerfectClear: isPerfect,
       );
 
-      // Respawn bonus tiles on new empty cells
       _ensureBonusTiles();
     } else {
       combo = 0;
@@ -429,7 +564,6 @@ class BlockBlastGame extends ChangeNotifier {
 
     _saveHighScore();
 
-    // If tray is empty, refill with 3 new pieces
     if (currentPieces.every((p) => p == null)) {
       _refillPieces();
     } else {
@@ -440,6 +574,7 @@ class BlockBlastGame extends ChangeNotifier {
     return true;
   }
 
+  /// Comprehensive scanning to detect Game Over accurately
   void _checkGameOver() {
     if (isGameOver) return;
 
@@ -459,9 +594,11 @@ class BlockBlastGame extends ChangeNotifier {
       if (canPlaceAny) break;
     }
 
+    // Only trigger game over if pieces remain but NONE of them fit anywhere
     if (!canPlaceAny && currentPieces.any((p) => p != null)) {
       isGameOver = true;
       _stopTimer();
+      _stopCameoTimer();
       _saveHighScore();
     }
   }
@@ -469,6 +606,7 @@ class BlockBlastGame extends ChangeNotifier {
   @override
   void dispose() {
     _stopTimer();
+    _stopCameoTimer();
     super.dispose();
   }
 }
