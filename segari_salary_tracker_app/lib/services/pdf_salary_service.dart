@@ -418,7 +418,7 @@ class PdfSalaryService {
             pw.Center(
               child: pw.Text(
                 'Dokumen ini dicetak otomatis melalui Sesaat Apps sebagai rincian sah perhitungan upah shift Daily Worker Segari.',
-                style: const pw.TextStyle(fontSize: 7.5, color: textGray, fontStyle: pw.FontStyle.italic),
+                style: pw.TextStyle(fontSize: 7.5, color: textGray, fontStyle: pw.FontStyle.italic),
                 textAlign: pw.TextAlign.center,
               ),
             ),

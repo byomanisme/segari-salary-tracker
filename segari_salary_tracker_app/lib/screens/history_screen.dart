@@ -17,8 +17,10 @@ class HistoryScreen extends StatefulWidget {
   final Function(AttendanceRecord) onDeleteRecord;
   final VoidCallback? onDataRestored;
 
+  final String? initialCycleKey;
+
   const HistoryScreen({
-    Key? key,
+    super.key,
     required this.settings,
     required this.records,
     this.penalties = const [],
@@ -26,7 +28,8 @@ class HistoryScreen extends StatefulWidget {
     required this.onSaveRecord,
     required this.onDeleteRecord,
     this.onDataRestored,
-  }) : super(key: key);
+    this.initialCycleKey,
+  });
 
   @override
   State<HistoryScreen> createState() => _HistoryScreenState();
@@ -34,10 +37,44 @@ class HistoryScreen extends StatefulWidget {
 
 class _HistoryScreenState extends State<HistoryScreen> {
   String _selectedFilter = 'all';
-  String _selectedYear = '2026'; // Default Year: 2026
-  String _selectedMonth = '08'; // Default Month: 08 (Agustus)
+  late String _selectedYear;
+  late String _selectedMonth;
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialCycleKey != null) {
+      final parts = widget.initialCycleKey!.split('-');
+      if (parts.length >= 2) {
+        _selectedYear = parts[0];
+        _selectedMonth = parts[1];
+      } else {
+        final now = DateTime.now();
+        _selectedYear = '${now.year}';
+        _selectedMonth = now.month.toString().padLeft(2, '0');
+      }
+    } else {
+      final now = DateTime.now();
+      _selectedYear = '${now.year}';
+      _selectedMonth = now.month.toString().padLeft(2, '0');
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant HistoryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialCycleKey != null && widget.initialCycleKey != oldWidget.initialCycleKey) {
+      final parts = widget.initialCycleKey!.split('-');
+      if (parts.length >= 2) {
+        setState(() {
+          _selectedYear = parts[0];
+          _selectedMonth = parts[1];
+        });
+      }
+    }
+  }
 
   static const List<Map<String, String>> _monthOptions = [
     {'value': '01', 'label': 'Januari (01)'},

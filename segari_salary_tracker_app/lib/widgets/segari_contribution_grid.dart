@@ -14,14 +14,16 @@ class SegariContributionGrid extends StatefulWidget {
   final List<ComplaintPenalty> penalties;
   final List<SkuEntry> skuEntries;
   final String? initialCycleKey;
+  final Function(int year, int month)? onMonthChanged;
 
   const SegariContributionGrid({
-    Key? key,
+    super.key,
     required this.records,
     this.penalties = const [],
     this.skuEntries = const [],
     this.initialCycleKey,
-  }) : super(key: key);
+    this.onMonthChanged,
+  });
 
   @override
   State<SegariContributionGrid> createState() => _SegariContributionGridState();
@@ -401,6 +403,18 @@ class _SegariContributionGridState extends State<SegariContributionGrid> with Wi
   @override
   void didUpdateWidget(covariant SegariContributionGrid oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.initialCycleKey != null && widget.initialCycleKey != oldWidget.initialCycleKey) {
+      final parts = widget.initialCycleKey!.split('-');
+      if (parts.length >= 2) {
+        final y = int.tryParse(parts[0]) ?? _focusedYear;
+        final m = int.tryParse(parts[1]) ?? _focusedMonth;
+        if (y != _focusedYear || m != _focusedMonth) {
+          _focusedYear = y;
+          _focusedMonth = m;
+          _spawnGroceries();
+        }
+      }
+    }
     _initCalendarDates();
   }
 
@@ -425,6 +439,7 @@ class _SegariContributionGridState extends State<SegariContributionGrid> with Wi
       _initCalendarDates();
       _spawnGroceries();
     });
+    widget.onMonthChanged?.call(_focusedYear, _focusedMonth);
   }
 
   void _shiftMonth(int offset) {
@@ -440,6 +455,7 @@ class _SegariContributionGridState extends State<SegariContributionGrid> with Wi
       _initCalendarDates();
       _spawnGroceries();
     });
+    widget.onMonthChanged?.call(_focusedYear, _focusedMonth);
   }
 
   void _showMonthYearPicker(BuildContext context) {
@@ -1150,22 +1166,9 @@ class _SegariContributionGridState extends State<SegariContributionGrid> with Wi
             ],
           ),
 
-          const SizedBox(height: 10),
-
-          // 3. Dynamic Month Quick-Pills (Month-1, Focused Month, Month+1)
-          Row(
-            children: [
-              _buildDynamicMonthTab(-1),
-              const SizedBox(width: 6),
-              _buildDynamicMonthTab(0),
-              const SizedBox(width: 6),
-              _buildDynamicMonthTab(1),
-            ],
-          ),
-
           const SizedBox(height: 12),
 
-          // 4. Main Calendar Content: Monthly Calendar Grid OR Mascot Matrix
+          // 3. Main Calendar Content: Monthly Calendar Grid OR Mascot Matrix
           if (_isMonthlyCalendarView)
             _buildMonthlyCalendarView(recordMap)
           else

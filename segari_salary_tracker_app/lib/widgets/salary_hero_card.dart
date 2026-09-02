@@ -12,12 +12,17 @@ class SalaryHeroCard extends StatefulWidget {
   final List<ComplaintPenalty> penalties;
   final UserSettings settings;
 
+  final String? activeCycleKey;
+  final Function(int year, int month)? onCycleChanged;
+
   const SalaryHeroCard({
     Key? key,
     required this.records,
     required this.skuEntries,
     required this.penalties,
     required this.settings,
+    this.activeCycleKey,
+    this.onCycleChanged,
   }) : super(key: key);
 
   @override
@@ -36,7 +41,17 @@ class _SalaryHeroCardState extends State<SalaryHeroCard> {
   void initState() {
     super.initState();
     final now = DateTime.now();
-    _activeCycleKey = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    _activeCycleKey = widget.activeCycleKey ?? '${now.year}-${now.month.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  void didUpdateWidget(covariant SalaryHeroCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.activeCycleKey != null && widget.activeCycleKey != oldWidget.activeCycleKey) {
+      setState(() {
+        _activeCycleKey = widget.activeCycleKey!;
+      });
+    }
   }
 
   String _formatCurrency(num amount) {
@@ -66,6 +81,7 @@ class _SalaryHeroCardState extends State<SalaryHeroCard> {
     setState(() {
       _activeCycleKey = '$year-${month.toString().padLeft(2, '0')}';
     });
+    widget.onCycleChanged?.call(year, month);
   }
 
   @override

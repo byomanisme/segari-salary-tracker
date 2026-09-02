@@ -89,6 +89,23 @@ class AttendanceRecord {
     );
   }
 
+  int get totalHours {
+    switch (type) {
+      case 'reguler':
+        return 8;
+      case 'reguler_mp3':
+        return 11;
+      case 'mp3':
+        return 3;
+      case 'double_mp3':
+        return 6;
+      case 'training':
+        return 8;
+      default:
+        return 0;
+    }
+  }
+
   String toJson() => json.encode(toMap());
 
   factory AttendanceRecord.fromJson(String source) =>

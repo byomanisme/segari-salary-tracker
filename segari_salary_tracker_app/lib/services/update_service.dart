@@ -43,13 +43,13 @@ class AppUpdateInfo {
 }
 
 class UpdateService {
-  static const String currentVersion = '1.3.0';
-  static const int currentBuildNumber = 13;
+  static const String currentVersion = '1.3.1';
+  static const int currentBuildNumber = 14;
 
   // Live remote update endpoint on user domain
   static const String manifestUrl = 'https://lukmanhakim.id/apk/version.json';
   static const String defaultDownloadUrl =
-      'https://lukmanhakim.id/apk/SegariSalaryTracker-v1.3.0.apk';
+      'https://lukmanhakim.id/apk/SegariSalaryTracker-v1.3.1.apk';
 
   static const String _keyLastSeenVersion = 'segari_last_seen_app_version';
   static const String _keyLastSeenBuild = 'segari_last_seen_build_number';
@@ -57,10 +57,10 @@ class UpdateService {
 
   // Latest Release Notes for current version (shown on first launch after update)
   static final List<String> currentWhatsNewList = [
-    '📅 Integrasi Otomatis Card Kalender: Tampilan kalender bulanan 1 bulan penuh (Grid 7x5) dengan tanggal berwarna akurat sesuai shift (OFF, MP3H, Reguler, Lembur, Siang, Subuh, Pagi).',
-    '⚡ Sinkronisasi Metrik Shift: Shift Aktif, Hari Libur, dan Total Jam otomatis terhitung persis sesuai bulan dan tahun yang sedang aktif.',
-    '🗓️ Navigasi Bulan & Tahun Lengkap: Dilengkapi tombol geser (< >), pill navigasi dinamis, dan dialog pemilih Bulan & Tahun (Jan-Des, 2025-2030).',
-    '🎮 Toggle Kalender & Matriks Maskot: Beralih instan antara Tampilan Kalender Bulanan Rapi dan Matriks Game Maskot Segari.',
+    '🤖 Fitur Sinkronisasi & Analisis AI: Kirim data riil HP ke Antigravity AI di PC dengan 1 klik untuk analisis mendalam performa dan gaji.',
+    '📱 Card Target SKU & Denda Ringkas: Tampilan homescreen lebih ramping, sleek, dan nyaman dipandang dengan pintasan ke detail lengkap.',
+    '🎨 Kalender Contribution Berwarna Per Bulan: Tanggal berwarna shift hanya muncul di bulan aktif, dilengkapi garis pemisah antar bulan.',
+    '🧹 Pembersihan Halaman Target & Denda: Menghapus card riwayat redundan agar antarmuka lebih bersih dan teratur.',
   ];
 
   /// Check if the user just updated the app to show "What's New"

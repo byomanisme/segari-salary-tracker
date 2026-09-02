@@ -17,6 +17,9 @@ class SkuPenaltyScreen extends StatefulWidget {
   final Function(ComplaintPenalty) onDeletePenalty;
   final Function(UserSettings)? onUpdateSettings;
 
+  final String? initialCycleKey;
+  final Function(int year, int month)? onCycleChanged;
+
   const SkuPenaltyScreen({
     super.key,
     required this.settings,
@@ -27,6 +30,8 @@ class SkuPenaltyScreen extends StatefulWidget {
     required this.onAddPenalty,
     required this.onDeletePenalty,
     this.onUpdateSettings,
+    this.initialCycleKey,
+    this.onCycleChanged,
   });
 
   @override
@@ -34,7 +39,7 @@ class SkuPenaltyScreen extends StatefulWidget {
 }
 
 class _SkuPenaltyScreenState extends State<SkuPenaltyScreen> {
-  String _activeCycleKey = '2026-08'; // Default cycle
+  late String _activeCycleKey;
 
   static const List<String> _monthNames = [
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -45,7 +50,17 @@ class _SkuPenaltyScreenState extends State<SkuPenaltyScreen> {
   void initState() {
     super.initState();
     final now = DateTime.now();
-    _activeCycleKey = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+    _activeCycleKey = widget.initialCycleKey ?? '${now.year}-${now.month.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  void didUpdateWidget(covariant SkuPenaltyScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialCycleKey != null && widget.initialCycleKey != oldWidget.initialCycleKey) {
+      setState(() {
+        _activeCycleKey = widget.initialCycleKey!;
+      });
+    }
   }
 
   void _shiftCycle(int offset) {
@@ -66,6 +81,7 @@ class _SkuPenaltyScreenState extends State<SkuPenaltyScreen> {
     setState(() {
       _activeCycleKey = '$year-${month.toString().padLeft(2, '0')}';
     });
+    widget.onCycleChanged?.call(year, month);
   }
 
   @override

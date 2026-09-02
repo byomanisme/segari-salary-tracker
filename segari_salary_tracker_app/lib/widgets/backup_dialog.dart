@@ -7,6 +7,7 @@ import 'package:printing/printing.dart';
 import 'package:intl/intl.dart';
 import '../data/storage_service.dart';
 import '../services/google_drive_sync_service.dart';
+import 'ai_sync_dialog.dart';
 
 class BackupDialog extends StatefulWidget {
   final VoidCallback onDataRestored;
@@ -463,6 +464,55 @@ class _BackupDialogState extends State<BackupDialog> {
             ),
 
             const SizedBox(height: 20),
+            Divider(color: Colors.white.withOpacity(0.08)),
+            const SizedBox(height: 12),
+
+            // 🤖 SECTION: SINKRONISASI KE AI ANTIGRAVITY
+            InkWell(
+              onTap: () {
+                Navigator.pop(context);
+                showDialog(
+                  context: context,
+                  builder: (_) => const AiSyncDialog(),
+                );
+              },
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF38BDF8).withOpacity(0.4)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.psychology_outlined, color: Color(0xFF38BDF8), size: 22),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Sinkronkan Data ke AI (PC)',
+                            style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            'Kirim data ke server agar dapat dianalisis di PC/Antigravity',
+                            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 10),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.arrow_forward_ios, color: Color(0xFF38BDF8), size: 12),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
             Divider(color: Colors.white.withOpacity(0.08)),
             const SizedBox(height: 10),
 

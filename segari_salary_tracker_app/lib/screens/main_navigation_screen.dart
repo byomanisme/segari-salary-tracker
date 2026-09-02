@@ -22,8 +22,10 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   int _currentIndex = 0;
   bool _isLoading = true;
+  late int _activeYear;
+  late int _activeMonth;
 
-  UserSettings _settings = UserSettings();
+  late UserSettings _settings;
   List<AttendanceRecord> _records = [];
   List<ComplaintPenalty> _penalties = [];
   List<SkuEntry> _skuEntries = [];
@@ -31,7 +33,17 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _activeYear = now.year;
+    _activeMonth = now.month;
     _loadAllData();
+  }
+
+  void _onGlobalMonthChanged(int year, int month) {
+    setState(() {
+      _activeYear = year;
+      _activeMonth = month;
+    });
   }
 
   Future<void> _loadAllData() async {
@@ -80,6 +92,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       );
     }
 
+    final globalCycleKey = '$_activeYear-${_activeMonth.toString().padLeft(2, '0')}';
+
     final pages = [
       // Index 0: Beranda
       HomeScreen(
@@ -87,6 +101,9 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         records: _records,
         penalties: _penalties,
         skuEntries: _skuEntries,
+        initialYear: _activeYear,
+        initialMonth: _activeMonth,
+        onMonthChanged: _onGlobalMonthChanged,
         onRefresh: _loadAllData,
         onOpenAddShift: _openAddShift,
         onOpenHistory: () => setState(() => _currentIndex = 1),
@@ -119,6 +136,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         records: _records,
         penalties: _penalties,
         skuEntries: _skuEntries,
+        initialCycleKey: globalCycleKey,
         onSaveRecord: (rec) async {
           await _storageService.addOrUpdateRecord(rec);
           await _loadAllData();
@@ -135,6 +153,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         settings: _settings,
         skuEntries: _skuEntries,
         penalties: _penalties,
+        initialCycleKey: globalCycleKey,
+        onCycleChanged: _onGlobalMonthChanged,
         onAddSku: (entry) async {
           await _storageService.addOrUpdateSkuEntry(entry);
           await _loadAllData();

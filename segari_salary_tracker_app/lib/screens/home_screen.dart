@@ -12,6 +12,7 @@ import '../widgets/add_sku_dialog.dart';
 import '../widgets/add_penalty_dialog.dart';
 import '../widgets/update_dialog.dart';
 import '../widgets/whatsapp_dialog.dart';
+import '../widgets/ai_sync_dialog.dart';
 import 'pdf_preview_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -28,9 +29,12 @@ class HomeScreen extends StatefulWidget {
   final Function(ComplaintPenalty)? onDeletePenalty;
   final Function(UserSettings)? onUpdateSettings;
   final VoidCallback? onOpenTargetAndPenalty;
+  final int? initialYear;
+  final int? initialMonth;
+  final Function(int year, int month)? onMonthChanged;
 
   const HomeScreen({
-    Key? key,
+    super.key,
     required this.settings,
     required this.records,
     required this.penalties,
@@ -39,12 +43,15 @@ class HomeScreen extends StatefulWidget {
     required this.onOpenAddShift,
     required this.onOpenHistory,
     this.onOpenTargetAndPenalty,
+    this.initialYear,
+    this.initialMonth,
+    this.onMonthChanged,
     this.onAddSku,
     this.onDeleteSku,
     this.onAddPenalty,
     this.onDeletePenalty,
     this.onUpdateSettings,
-  }) : super(key: key);
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -52,15 +59,42 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final UpdateService _updateService = UpdateService();
+  late int _selectedYear;
+  late int _selectedMonth;
 
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _selectedYear = widget.initialYear ?? now.year;
+    _selectedMonth = widget.initialMonth ?? now.month;
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await Future.delayed(const Duration(milliseconds: 500));
       if (!mounted) return;
       _checkVersionAndUpdates();
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialYear != null && widget.initialMonth != null) {
+      if (widget.initialYear != _selectedYear || widget.initialMonth != _selectedMonth) {
+        setState(() {
+          _selectedYear = widget.initialYear!;
+          _selectedMonth = widget.initialMonth!;
+        });
+      }
+    }
+  }
+
+  void _handleMonthChanged(int year, int month) {
+    setState(() {
+      _selectedYear = year;
+      _selectedMonth = month;
+    });
+    widget.onMonthChanged?.call(year, month);
   }
 
   Future<void> _checkVersionAndUpdates() async {
@@ -104,9 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _showWhatsAppDialog(BuildContext context) {
-    final now = DateTime.now();
-    final currentCycleKey = '${now.year}-${now.month.toString().padLeft(2, '0')}';
+  void _showWhatsAppDialog(BuildContext context, String activeCycleKey) {
     showDialog(
       context: context,
       builder: (_) => WhatsAppDialog(
@@ -114,17 +146,16 @@ class _HomeScreenState extends State<HomeScreen> {
         records: widget.records,
         penalties: widget.penalties,
         skuEntries: widget.skuEntries,
-        initialCycleKey: currentCycleKey,
+        initialCycleKey: activeCycleKey,
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final currentCycleKey = '${now.year}-${now.month.toString().padLeft(2, '0')}';
-    final currentMonthSkuEntries = widget.skuEntries.where((e) => e.date.startsWith(currentCycleKey)).toList();
-    final currentMonthPenalties = widget.penalties.where((p) => p.date.startsWith(currentCycleKey)).toList();
+    final activeCycleKey = '$_selectedYear-${_selectedMonth.toString().padLeft(2, '0')}';
+    final currentMonthSkuEntries = widget.skuEntries.where((e) => e.date.startsWith(activeCycleKey)).toList();
+    final currentMonthPenalties = widget.penalties.where((p) => p.date.startsWith(activeCycleKey)).toList();
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B1120),
@@ -168,11 +199,31 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
         actions: [
+          // 🤖 AI Sync & Analytics Button
+          IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF0284C7), Color(0xFF10B981)],
+                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(Icons.psychology_outlined, color: Colors.white, size: 18),
+            ),
+            tooltip: 'Sinkronisasi & Analisis AI',
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (_) => const AiSyncDialog(),
+              );
+            },
+          ),
           // WhatsApp Share Button
           IconButton(
             icon: const Icon(Icons.share, color: Color(0xFF25D366)),
             tooltip: 'Kirim Format WA Leader',
-            onPressed: () => _showWhatsAppDialog(context),
+            onPressed: () => _showWhatsAppDialog(context, activeCycleKey),
           ),
           // PDF Export Button
           IconButton(
@@ -187,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     records: widget.records,
                     penalties: widget.penalties,
                     skuEntries: widget.skuEntries,
-                    initialCycleKey: currentCycleKey,
+                    initialCycleKey: activeCycleKey,
                   ),
                 ),
               );
@@ -211,6 +262,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 skuEntries: widget.skuEntries,
                 penalties: widget.penalties,
                 settings: widget.settings,
+                activeCycleKey: activeCycleKey,
+                onCycleChanged: _handleMonthChanged,
               ),
 
               const SizedBox(height: 16),
@@ -220,7 +273,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 records: widget.records,
                 penalties: widget.penalties,
                 skuEntries: widget.skuEntries,
-                initialCycleKey: currentCycleKey,
+                initialCycleKey: activeCycleKey,
+                onMonthChanged: _handleMonthChanged,
               ),
 
               const SizedBox(height: 16),
@@ -239,7 +293,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       builder: (_) => AddSkuDialog(
                         onSave: widget.onAddSku!,
                         existingSkuEntries: widget.skuEntries,
-                        activeCycleKey: currentCycleKey,
+                        activeCycleKey: activeCycleKey,
                       ),
                     );
                   }
