@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:segari_salary_tracker_app/games/block_blast/block_blast_game.dart';
@@ -109,21 +110,21 @@ void main() {
       game.dispose();
     });
 
-    test('Cameo Mascot interaction awards bonus points', () {
+    test('Slithering Mascot interaction awards bonus points', () {
       final game = BlockBlastGame();
-      game.currentCameo = const CameoMascot(
+      game.currentMascot = SlitheringMascot(
         skinId: 'caterpillar',
         name: 'Ulat Sayur Segari',
-        r: 3,
-        c: 3,
-        bonusPoints: 75,
         emoji: '🐛',
+        body: [const Point(3, 3), const Point(3, 2), const Point(3, 1)],
+        direction: const Point(0, 1),
+        bonusPoints: 75,
       );
 
-      final pts = game.interactCameo();
+      final pts = game.interactMascot(3, 3);
       expect(pts, 75);
       expect(game.score, 75);
-      expect(game.currentCameo, isNull);
+      expect(game.currentMascot, isNull);
       game.dispose();
     });
   });

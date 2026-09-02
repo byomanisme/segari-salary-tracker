@@ -51,22 +51,34 @@ class BonusTile {
   ];
 }
 
-class CameoMascot {
+class SlitheringMascot {
   final String skinId; // 'caterpillar' or 'snake'
   final String name;
-  final int r;
-  final int c;
-  final int bonusPoints;
   final String emoji;
+  final List<Point<int>> body; // [head, body, tail]
+  Point<int> direction; // e.g. Point(1, 0)
+  int animTick;
+  int stepsRemaining;
+  final int bonusPoints;
 
-  const CameoMascot({
+  SlitheringMascot({
     required this.skinId,
     required this.name,
-    required this.r,
-    required this.c,
-    required this.bonusPoints,
     required this.emoji,
+    required this.body,
+    required this.direction,
+    this.animTick = 0,
+    this.stepsRemaining = 18,
+    required this.bonusPoints,
   });
+
+  bool occupies(int r, int c) {
+    return body.any((pt) => pt.x == r && pt.y == c);
+  }
+
+  int indexOf(int r, int c) {
+    return body.indexWhere((pt) => pt.x == r && pt.y == c);
+  }
 }
 
 class BlastResult {
@@ -115,10 +127,10 @@ class BlockBlastGame extends ChangeNotifier {
   // Mystery Bonus Cells on empty board cells (key: "r-c")
   final Map<String, BonusTile> bonusCells = {};
 
-  // Cameo Mascot (Ulat Sayur & Ular Segari)
-  CameoMascot? currentCameo;
+  // Slithering Mascot (Ulat Sayur & Ular Segari)
+  SlitheringMascot? currentMascot;
   Timer? _cameoTimer;
-  Timer? _cameoDismissTimer;
+  Timer? _slitherTimer;
 
   // Dynamic Segari Fun Facts Database
   static const List<String> segariFunFacts = [
@@ -188,7 +200,7 @@ class BlockBlastGame extends ChangeNotifier {
       (_) => List.generate(boardSize, (_) => null),
     );
     bonusCells.clear();
-    currentCameo = null;
+    currentMascot = null;
     score = 0;
     combo = 0;
     level = 1;
@@ -201,7 +213,7 @@ class BlockBlastGame extends ChangeNotifier {
     currentFunFact = segariFunFacts[_random.nextInt(segariFunFacts.length)];
 
     _stopTimer();
-    _stopCameoTimer();
+    _stopMascotTimers();
     _loadHighScore();
     _refillPieces();
     _spawnBonusTiles(3);
@@ -239,24 +251,25 @@ class BlockBlastGame extends ChangeNotifier {
     }
   }
 
-  // --- Cameo Mascots (Ulat Sayur 🐛 & Ular Hijau 🐍) ---
+  // --- Slithering Mascot Engine (Ulat Sayur 🐛 & Ular Hijau 🐍) ---
   void _startCameoTimer() {
-    _stopCameoTimer();
-    // Spawn cameo mascot every 18 to 25 seconds
-    final delay = 18 + _random.nextInt(8);
-    _cameoTimer = Timer(Duration(seconds: delay), _spawnCameo);
+    _stopMascotTimers();
+    // Spawn cameo mascot every 15 to 22 seconds
+    final delay = 15 + _random.nextInt(8);
+    _cameoTimer = Timer(Duration(seconds: delay), _spawnMascot);
   }
 
-  void _stopCameoTimer() {
+  void _stopMascotTimers() {
     _cameoTimer?.cancel();
     _cameoTimer = null;
-    _cameoDismissTimer?.cancel();
-    _cameoDismissTimer = null;
+    _slitherTimer?.cancel();
+    _slitherTimer = null;
   }
 
-  void _spawnCameo() {
+  void _spawnMascot() {
     if (isGameOver) return;
 
+    // Find a cluster of 2-3 connected empty cells
     final emptyCells = <Point<int>>[];
     for (int r = 0; r < boardSize; r++) {
       for (int c = 0; c < boardSize; c++) {
@@ -266,44 +279,138 @@ class BlockBlastGame extends ChangeNotifier {
       }
     }
 
-    if (emptyCells.isNotEmpty) {
-      final pt = emptyCells[_random.nextInt(emptyCells.length)];
+    if (emptyCells.length < 3) {
+      _startCameoTimer();
+      return;
+    }
+
+    emptyCells.shuffle(_random);
+    Point<int>? startPt;
+    Point<int>? secondPt;
+    Point<int>? thirdPt;
+
+    final dirs = [
+      const Point(1, 0),
+      const Point(-1, 0),
+      const Point(0, 1),
+      const Point(0, -1),
+    ];
+
+    for (final pt in emptyCells) {
+      for (final d in dirs) {
+        final p2 = Point(pt.x + d.x, pt.y + d.y);
+        if (p2.x >= 0 && p2.x < boardSize && p2.y >= 0 && p2.y < boardSize &&
+            board[p2.x][p2.y] == null && !bonusCells.containsKey('${p2.x}-${p2.y}')) {
+          for (final d2 in dirs) {
+            final p3 = Point(p2.x + d2.x, p2.y + d2.y);
+            if (p3 != pt && p3.x >= 0 && p3.x < boardSize && p3.y >= 0 && p3.y < boardSize &&
+                board[p3.x][p3.y] == null && !bonusCells.containsKey('${p3.x}-${p3.y}')) {
+              startPt = pt;
+              secondPt = p2;
+              thirdPt = p3;
+              break;
+            }
+          }
+        }
+        if (startPt != null) break;
+      }
+      if (startPt != null) break;
+    }
+
+    if (startPt != null && secondPt != null && thirdPt != null) {
       final isCaterpillar = _random.nextBool();
-      currentCameo = CameoMascot(
+      final initialDir = Point(startPt.x - secondPt.x, startPt.y - secondPt.y);
+
+      currentMascot = SlitheringMascot(
         skinId: isCaterpillar ? 'caterpillar' : 'snake',
         name: isCaterpillar ? 'Ulat Sayur Segari' : 'Ular Hijau Segari',
-        r: pt.x,
-        c: pt.y,
-        bonusPoints: 50 + _random.nextInt(4) * 25, // 50, 75, 100, 125
         emoji: isCaterpillar ? '🐛' : '🐍',
+        body: [startPt, secondPt, thirdPt],
+        direction: initialDir.x == 0 && initialDir.y == 0 ? const Point(1, 0) : initialDir,
+        stepsRemaining: 20,
+        bonusPoints: 75 + _random.nextInt(3) * 25, // 75, 100, 125
       );
       notifyListeners();
 
-      // Cameo stays on the cell for 7 seconds then crawls away
-      _cameoDismissTimer?.cancel();
-      _cameoDismissTimer = Timer(const Duration(seconds: 7), () {
-        if (currentCameo != null) {
-          currentCameo = null;
-          notifyListeners();
-          _startCameoTimer();
-        }
+      // Start stepping timer (slithers every 380ms)
+      _slitherTimer?.cancel();
+      _slitherTimer = Timer.periodic(const Duration(milliseconds: 380), (_) {
+        _stepMascot();
       });
     } else {
       _startCameoTimer();
     }
   }
 
-  /// Interact with cameo mascot when tapped
-  int? interactCameo() {
-    if (currentCameo == null) return null;
+  void _stepMascot() {
+    if (currentMascot == null || isGameOver) {
+      _slitherTimer?.cancel();
+      return;
+    }
 
-    final pts = currentCameo!.bonusPoints;
+    final m = currentMascot!;
+    if (m.stepsRemaining <= 0) {
+      // Slithered away safely into the garden!
+      currentMascot = null;
+      _stopMascotTimers();
+      _startCameoTimer();
+      notifyListeners();
+      return;
+    }
+
+    m.stepsRemaining--;
+    m.animTick++;
+
+    final head = m.body.first;
+    // Prefer going straight, then turn right, then turn left
+    final possibleDirs = [
+      m.direction,
+      Point(-m.direction.y, m.direction.x),
+      Point(m.direction.y, -m.direction.x),
+    ];
+
+    Point<int>? nextHead;
+    Point<int>? nextDir;
+
+    for (final dir in possibleDirs) {
+      final nextPt = Point(head.x + dir.x, head.y + dir.y);
+      if (nextPt.x >= 0 && nextPt.x < boardSize &&
+          nextPt.y >= 0 && nextPt.y < boardSize &&
+          board[nextPt.x][nextPt.y] == null &&
+          !m.body.contains(nextPt)) {
+        nextHead = nextPt;
+        nextDir = dir;
+        break;
+      }
+    }
+
+    if (nextHead != null && nextDir != null) {
+      m.direction = nextDir;
+      m.body.insert(0, nextHead);
+      if (m.body.length > 3) {
+        m.body.removeLast();
+      }
+      notifyListeners();
+    } else {
+      // Reached a dead end, burrows away peacefully!
+      currentMascot = null;
+      _stopMascotTimers();
+      _startCameoTimer();
+      notifyListeners();
+    }
+  }
+
+  /// Interact with slithering mascot when any of its segments is tapped
+  int? interactMascot(int r, int c) {
+    if (currentMascot == null || !currentMascot!.occupies(r, c)) return null;
+
+    final pts = currentMascot!.bonusPoints;
     score += pts;
     _addExp(pts);
     _saveHighScore();
 
-    currentCameo = null;
-    _cameoDismissTimer?.cancel();
+    currentMascot = null;
+    _stopMascotTimers();
     notifyListeners();
 
     _startCameoTimer();
@@ -319,7 +426,7 @@ class BlockBlastGame extends ChangeNotifier {
         notifyListeners();
       } else {
         _stopTimer();
-        _stopCameoTimer();
+        _stopMascotTimers();
         isGameOver = true;
         _saveHighScore();
         notifyListeners();
@@ -405,14 +512,14 @@ class BlockBlastGame extends ChangeNotifier {
     // Strict validation: NEVER place if canPlace is false
     if (!canPlace(shape, startRow, startCol)) return false;
 
-    // If a cameo was sitting on one of the placed cells, collect it automatically!
+    // If mascot was occupying any of the placed cells, collect it automatically!
     for (int r = 0; r < shape.rows; r++) {
       for (int c = 0; c < shape.cols; c++) {
         if (shape.matrix[r][c] == 1) {
           final targetR = startRow + r;
           final targetC = startCol + c;
-          if (currentCameo != null && currentCameo!.r == targetR && currentCameo!.c == targetC) {
-            interactCameo();
+          if (currentMascot != null && currentMascot!.occupies(targetR, targetC)) {
+            interactMascot(targetR, targetC);
           }
           board[targetR][targetC] = shape.color;
         }
@@ -598,7 +705,7 @@ class BlockBlastGame extends ChangeNotifier {
     if (!canPlaceAny && currentPieces.any((p) => p != null)) {
       isGameOver = true;
       _stopTimer();
-      _stopCameoTimer();
+      _stopMascotTimers();
       _saveHighScore();
     }
   }
@@ -606,7 +713,7 @@ class BlockBlastGame extends ChangeNotifier {
   @override
   void dispose() {
     _stopTimer();
-    _stopCameoTimer();
+    _stopMascotTimers();
     super.dispose();
   }
 }

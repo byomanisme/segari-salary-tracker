@@ -43,13 +43,13 @@ class AppUpdateInfo {
 }
 
 class UpdateService {
-  static const String currentVersion = '1.3.5';
-  static const int currentBuildNumber = 18;
+  static const String currentVersion = '1.3.6';
+  static const int currentBuildNumber = 19;
 
   // Live remote update endpoint on user domain
   static const String manifestUrl = 'https://lukmanhakim.id/apk/version.json';
   static const String defaultDownloadUrl =
-      'https://lukmanhakim.id/apk/SegariSalaryTracker-v1.3.5.apk';
+      'https://lukmanhakim.id/apk/SegariSalaryTracker-v1.3.6.apk';
 
   static const String _keyLastSeenVersion = 'segari_last_seen_app_version';
   static const String _keyLastSeenBuild = 'segari_last_seen_build_number';
@@ -57,12 +57,11 @@ class UpdateService {
 
   // Latest Release Notes for current version (shown on first launch after update)
   static final List<String> currentWhatsNewList = [
-    '🐛 Cameo Ulat Sayur & Ular Segari: Maskot lucu muncul di sela kotak kosong, ketuk untuk klaim bonus poin kejutan!',
-    '🎯 Presisi Drag & Drop Sempurna: Balok menempel pas di jempol dan bayangan target berada jauh di atasnya tanpa terhalang jari.',
-    '💥 Animasi Splash Outline Bentuk Balok: Kilatan garis neon persis bentuk balok saat dipasang & poin meluncur ke total skor.',
-    '🥬 Ikon Sembako Asli Kalender Segari: Menggunakan produk riil Segari (Brokoli, Wortel, Tomat, Daging, Salmon, dll).',
-    '💡 Ensiklopedia Tips, Trik & Fun Fact Segari: Tips segar penyimpanan dan nutrisi bahan Segari berganti setiap kali balok dipasang.',
-    '🛡️ Perbaikan Bug Tuntas: Fix balok tertimpa, fix kotak bawah terpotong, fix looping level up, dan akurasi game over.',
+    '🐛 Maskot Merayap Hidup: Ulat Sayur & Ular Segari merayap aktif melintasi kotak-kotak kosong seperti di kalender, ketuk untuk klaim bonus kejutan!',
+    '🎮 Presisi Drag & Drop Sempurna: Sumbu X pas lurus atas-bawah, jarak vertikal konstan, dan bayangan otomatis lenyap saat digeser keluar papan.',
+    '📐 Tampilan Ramping & Bebas Dead Space: Menghapus ruang kosong berlebih di atas dan bawah papan sehingga layout pas dan nyaman.',
+    '💡 Tips & Fun Fact Segari Utuh: Teks edukasi bahan Segari kini multi-baris sehingga seluruh kalimat tampil lengkap tanpa terpotong.',
+    '🛡️ Kestabilan Sistem: Peningkatan akurasi penempatan balok dan responsivitas game.',
   ];
 
   /// Check if the user just updated the app to show "What's New"

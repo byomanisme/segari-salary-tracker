@@ -3,6 +3,8 @@
 *.log
 *.pyc
 *.pyo
+*.xapk
+*.apk
 __pycache__/
 .DS_Store
 .atom/
