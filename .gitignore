@@ -35,6 +35,7 @@ migrate_working_dir/
 **/gradlew
 **/gradlew.bat
 
-# Large APKs & Temp binaries
+# Large APKs & Archive
 *.apk
-portfolio_web/apk/*.apk
+archive/
+user_synced_data.json

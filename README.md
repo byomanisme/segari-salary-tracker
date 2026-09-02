@@ -53,13 +53,15 @@
 hitung_gaji_segari/
 ├── segari_salary_tracker_app/   # Source code aplikasi Flutter (Android/Web/iOS)
 │   ├── lib/
+│   │   ├── data/                # Initial sample data & local storage engine
 │   │   ├── models/              # Attendance, SKU Entry, Penalty, Settings
 │   │   ├── screens/             # Beranda, Riwayat, Target SKU, Settings, Add/Edit
-│   │   ├── services/            # UpdateService, PdfService, CloudSync
-│   │   └── widgets/             # SalaryHeroCard, ContributionGrid, Mascots
-│   └── assets/images/           # App icons, doodles, and branding assets
-├── portfolio_web/               # Landing page web & API update endpoint
-└── README.md
+│   │   ├── services/            # UpdateService, AiSyncService, PdfService, CloudSync
+│   │   └── widgets/             # SalaryHeroCard, ContributionGrid, Mascots, Dialogs
+│   ├── assets/                  # App icons, doodles, and branding assets
+│   └── pubspec.yaml             # Flutter dependencies & metadata (v1.3.1)
+├── sync_github.bat              # Script otomatisasi sync GitHub
+└── README.md                    # Dokumentasi resmi repositori
 ```
 
 ---
