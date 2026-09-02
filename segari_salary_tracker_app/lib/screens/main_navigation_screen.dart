@@ -9,6 +9,7 @@ import 'history_screen.dart';
 import 'sku_penalty_screen.dart';
 import 'settings_screen.dart';
 import 'add_edit_screen.dart';
+import '../widgets/floating_game_bubble.dart';
 
 class MainNavigationScreen extends StatefulWidget {
   const MainNavigationScreen({Key? key}) : super(key: key);
@@ -193,9 +194,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B1120),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: pages,
+      body: Stack(
+        children: [
+          IndexedStack(
+            index: _currentIndex,
+            children: pages,
+          ),
+          FloatingGameBubble(
+            isVisible: _settings.showGameBubble,
+          ),
+        ],
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(

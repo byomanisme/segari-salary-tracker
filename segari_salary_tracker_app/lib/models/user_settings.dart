@@ -17,6 +17,7 @@ class UserSettings {
   final int paydayDay;
   final int penaltyLessItem;
   final int penaltyRottenSku;
+  final bool showGameBubble;
 
   UserSettings({
     this.name = 'PEKERJA SEGARI',
@@ -32,6 +33,7 @@ class UserSettings {
     this.paydayDay = 6,
     this.penaltyLessItem = 10000,
     this.penaltyRottenSku = 50000,
+    this.showGameBubble = true,
   });
 
   // Backward compatibility alias for Severity 1
@@ -94,6 +96,7 @@ class UserSettings {
     int? paydayDay,
     int? penaltyLessItem,
     int? penaltyRottenSku,
+    bool? showGameBubble,
   }) {
     return UserSettings(
       name: name ?? this.name,
@@ -109,6 +112,7 @@ class UserSettings {
       paydayDay: paydayDay ?? this.paydayDay,
       penaltyLessItem: penaltyLessItem ?? this.penaltyLessItem,
       penaltyRottenSku: penaltyRottenSku ?? this.penaltyRottenSku,
+      showGameBubble: showGameBubble ?? this.showGameBubble,
     );
   }
 
@@ -127,6 +131,7 @@ class UserSettings {
       'paydayDay': paydayDay,
       'penaltyLessItem': penaltyLessItem,
       'penaltyRottenSku': penaltyRottenSku,
+      'showGameBubble': showGameBubble,
     };
   }
 
@@ -149,6 +154,7 @@ class UserSettings {
       paydayDay: (map['paydayDay'] as num?)?.toInt() ?? 6,
       penaltyLessItem: (map['penaltyLessItem'] as num?)?.toInt() ?? 10000,
       penaltyRottenSku: (map['penaltyRottenSku'] as num?)?.toInt() ?? 50000,
+      showGameBubble: map['showGameBubble'] as bool? ?? true,
     );
   }
 

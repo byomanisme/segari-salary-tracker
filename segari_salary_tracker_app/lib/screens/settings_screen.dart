@@ -39,6 +39,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _paydayDayController;
   late TextEditingController _penaltyLessController;
   late TextEditingController _penaltyRottenController;
+  late bool _showGameBubble;
 
   bool _isCheckingUpdate = false;
   final _updateService = UpdateService();
@@ -46,6 +47,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    _showGameBubble = widget.settings.showGameBubble;
     _nameController = TextEditingController(text: widget.settings.name);
     _empIdController = TextEditingController(text: widget.settings.empId);
     _regulerRateController = TextEditingController(text: widget.settings.regulerRate.toString());
@@ -98,6 +100,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       paydayDay: int.tryParse(_paydayDayController.text) ?? 6,
       penaltyLessItem: int.tryParse(_penaltyLessController.text) ?? 10000,
       penaltyRottenSku: int.tryParse(_penaltyRottenController.text) ?? 50000,
+      showGameBubble: _showGameBubble,
     );
 
     widget.onSave(updated);
@@ -518,6 +521,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 14, fontWeight: FontWeight.bold),
                 validator: (val) => val == null || val.isEmpty ? 'Wajib diisi' : null,
                 decoration: _inputDecoration(suffixText: 'Setiap Bulan'),
+              ),
+
+              const SizedBox(height: 24),
+              Divider(color: Colors.white.withOpacity(0.08)),
+              const SizedBox(height: 14),
+
+              // Mini Game Block Blast (Bubble Chat)
+              const Text(
+                'FITUR HIBURAN (MINI GAME BUBBLE)',
+                style: TextStyle(color: Color(0xFF38BDF8), fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 0.8),
+              ),
+              const SizedBox(height: 10),
+
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF38BDF8).withOpacity(0.2)),
+                ),
+                child: SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  secondary: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF0284C7), Color(0xFF10B981)],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.sports_esports, color: Colors.white, size: 20),
+                  ),
+                  title: const Text(
+                    'Bubble Mini Game Block Blast',
+                    style: TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: const Text(
+                    'Munculkan bubble chat melayang untuk bermain puzzle Block Blast santai di sela-sela shift',
+                    style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11.5),
+                  ),
+                  value: _showGameBubble,
+                  activeColor: const Color(0xFF10B981),
+                  activeTrackColor: const Color(0xFF10B981).withOpacity(0.3),
+                  onChanged: (val) {
+                    setState(() => _showGameBubble = val);
+                  },
+                ),
               ),
 
               const SizedBox(height: 20),
