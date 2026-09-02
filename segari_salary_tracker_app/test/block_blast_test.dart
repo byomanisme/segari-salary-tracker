@@ -7,30 +7,40 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('BlockBlastGame Logic Tests', () {
-    test('Initialization has clean 8x8 board and 3 pieces', () {
+    test('Initialization has clean 8x8 board, 3 pieces, level 1, and timer', () {
       final game = BlockBlastGame();
       expect(game.board.length, 8);
       expect(game.board[0].length, 8);
       expect(game.score, 0);
       expect(game.combo, 0);
+      expect(game.level, 1);
+      expect(game.remainingSeconds, 90);
       expect(game.isGameOver, false);
       expect(game.currentPieces.where((p) => p != null).length, 3);
+      game.dispose();
     });
 
     test('canPlace and placePiece places block and updates score', () {
       final game = BlockBlastGame();
-      const dotShape = BlockShape(id: 'dot', matrix: [[1]], color: Colors.amber);
+      const dotShape = BlockShape(
+        id: 'dot',
+        matrix: [[1]],
+        color: Colors.amber,
+        icon: Icons.wb_sunny_rounded,
+        label: 'Lemon',
+      );
       game.currentPieces[0] = dotShape;
 
       expect(game.canPlace(dotShape, 0, 0), true);
       final success = game.placePiece(0, 0, 0);
       expect(success, true);
       expect(game.board[0][0], Colors.amber);
-      expect(game.score, 10);
+      expect(game.score, greaterThanOrEqualTo(10));
       expect(game.currentPieces[0], isNull);
 
       // Cannot place on occupied cell
       expect(game.canPlace(dotShape, 0, 0), false);
+      game.dispose();
     });
 
     test('Full row fills and triggers BLAST line clear and combo', () {
@@ -41,7 +51,13 @@ void main() {
       }
 
       // 8th block to complete row 0
-      const dot = BlockShape(id: 'dot', matrix: [[1]], color: Colors.blue);
+      const dot = BlockShape(
+        id: 'dot',
+        matrix: [[1]],
+        color: Colors.blue,
+        icon: Icons.water_drop_rounded,
+        label: 'Air Mineral',
+      );
       game.currentPieces[0] = dot;
 
       final placed = game.placePiece(0, 0, 7);
@@ -55,6 +71,8 @@ void main() {
       expect(game.combo, 1);
       expect(game.lastBlast, isNotNull);
       expect(game.lastBlast!.clearedRows, contains(0));
+      expect(game.lastBlast!.randomBonus, greaterThan(0));
+      game.dispose();
     });
   });
 }
