@@ -43,13 +43,13 @@ class AppUpdateInfo {
 }
 
 class UpdateService {
-  static const String currentVersion = '1.3.11';
-  static const int currentBuildNumber = 24;
+  static const String currentVersion = '1.3.12';
+  static const int currentBuildNumber = 25;
 
   // Live remote update endpoint on user domain
   static const String manifestUrl = 'https://lukmanhakim.id/apk/version.json';
   static const String defaultDownloadUrl =
-      'https://lukmanhakim.id/apk/SegariSalaryTracker-v1.3.11.apk';
+      'https://lukmanhakim.id/apk/SegariSalaryTracker-v1.3.12.apk';
 
   static const String _keyLastSeenVersion = 'segari_last_seen_app_version';
   static const String _keyLastSeenBuild = 'segari_last_seen_build_number';
@@ -57,9 +57,9 @@ class UpdateService {
 
   // Latest Release Notes for current version (shown on first launch after update)
   static final List<String> currentWhatsNewList = [
+    '⚡ Zero-Latency Native Android SoundPool: Perbaikan tuntas audio! Suara kini dimainkan langsung lewat hardware audio OS Android (0 ms delay), 100% bebas lag dan bebas bug suara hilang.',
     '🐛🐍 Suara Unik Ulat & Ular di Kotak Kosong: Efek suara bloop kartun lucu saat ulat sayur melangkah, dan desis halus berirama saat ular melata di papan, plus lonceng saat maskot muncul!',
     '🧩 4 Variasi Suara Pasang Balok: Setiap balok memiliki variasi bunyi taktil (snap kayu, thud tebal, mineral kaca, klik padat) serta suara saat balok diangkat (pick-up) dan gagal letak.',
-    '🚀 Sistem Audio Pool 8-Channel (RAM Cache): Bebas lag, seluruh efek suara dimuat ke memori untuk menjamin 100% suara selalu muncul tanpa pernah drop.',
     '👑 Rombak Dashboard Atas (Arcade HUD): Konsol 3 kartu statistik modern (Skor Neon, Level & EXP Menyatu, Rekor Terbaik) dan bilah tombol kapsul rapi.',
   ];
 

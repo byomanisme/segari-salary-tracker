@@ -597,7 +597,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
                       constraints: const BoxConstraints(),
                       onPressed: () {
                         setState(() {
-                          BlockBlastAudio.instance.isMuted = !BlockBlastAudio.instance.isMuted;
+                          BlockBlastAudio.instance.setMuted(!BlockBlastAudio.instance.isMuted);
                         });
                         HapticFeedback.selectionClick();
                       },
