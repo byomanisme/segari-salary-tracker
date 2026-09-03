@@ -43,13 +43,13 @@ class AppUpdateInfo {
 }
 
 class UpdateService {
-  static const String currentVersion = '1.3.9';
-  static const int currentBuildNumber = 22;
+  static const String currentVersion = '1.3.10';
+  static const int currentBuildNumber = 23;
 
   // Live remote update endpoint on user domain
   static const String manifestUrl = 'https://lukmanhakim.id/apk/version.json';
   static const String defaultDownloadUrl =
-      'https://lukmanhakim.id/apk/SegariSalaryTracker-v1.3.9.apk';
+      'https://lukmanhakim.id/apk/SegariSalaryTracker-v1.3.10.apk';
 
   static const String _keyLastSeenVersion = 'segari_last_seen_app_version';
   static const String _keyLastSeenBuild = 'segari_last_seen_build_number';
@@ -57,12 +57,11 @@ class UpdateService {
 
   // Latest Release Notes for current version (shown on first launch after update)
   static final List<String> currentWhatsNewList = [
-    '🎵 Efek Suara Interaktif Menarik: Suara snap balok terpasang, alunan marimba bertingkat (Do-Re-Mi-Fa-Sol) saat membersihkan baris kombo, arpeggio mega kombo, dan efek audio ceria saat menyentuh maskot ulat/ular!',
-    '🔊 Tombol Pengatur Suara: Tombol speaker di header atas untuk menyalakan atau membisukan suara secara instan.',
-    '⚡ Suara Revive & Game Over: Efek sihir kosmik saat mengambil kesempatan kedua (Revive) dan melodi santai penutup game.',
+    '👑 Rombak Dashboard Atas (Arcade HUD): Desain bagian atas kotak kosong dirombak total menjadi 3 kartu konsol modern (Skor Neon, Level & EXP Terintegrasi, Rekor Terbaik), plus bilah tombol kapsul kaca yang sangat rapi dan estetik.',
+    '🎵 Efek Suara Interaktif Menarik: Suara snap balok terpasang, marimba bertingkat kombo, mega kombo arpeggio, suara maskot ulat/ular, revive, dan game over.',
+    '🔊 Tombol Pengatur Suara: Ikon speaker di header atas untuk menyalakan atau membisukan suara secara instan.',
     '🎯 Drag & Drop Laser-Presisi: Titik tumpu jari (pointer drag anchor) dan bayangan papan selaras 100% tanpa gesekan atau drift.',
     '📐 Bebas Tertutup Teks: Kotak papan bawah tidak lagi tertutupi oleh tips & trick, kini berdiri kokoh dan proporsional di semua layar.',
-    '🧠 Anti-Deadlock Smart Spawner: Algoritma cerdas resmi Block Blast menjamin minimal 1 balok selalu muat.',
   ];
 
   /// Check if the user just updated the app to show "What's New"

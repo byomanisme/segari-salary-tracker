@@ -406,13 +406,10 @@ class _BlockBlastViewState extends State<BlockBlastView>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // 1. Header (Level, Mode Toggle, Score, High Score, Actions)
+              // 1. Header (Redesigned Arcade Deck with Integrated EXP)
               _buildHeader(game),
 
-              // 2. EXP Bar
-              _buildExpBar(game),
-
-              // 3. Compact Combo Toast (Only when combo is active)
+              // 2. Compact Combo Toast (Only when combo is active)
               _buildComboToast(game),
 
               // 4. 8x8 Board Container with Micro-Screen Shake on Blast!
@@ -462,7 +459,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
     final isUrgentTime = game.isTimeAttackMode && game.remainingSeconds <= 15;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
         border: Border(
@@ -472,213 +469,376 @@ class _BlockBlastViewState extends State<BlockBlastView>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // BARIS 1: Brand & Control Capsule Bar
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Level Badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF8B5CF6), Color(0xFF06B6D4)],
-                  ),
-                  borderRadius: BorderRadius.circular(7),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.star, color: Colors.amber, size: 13),
-                    const SizedBox(width: 3),
-                    Text(
-                      'LV.${game.level}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Mode Indicator & Switcher (Santai vs Tantangan Waktu)
-              InkWell(
-                onTap: () => game.toggleTimeMode(),
-                borderRadius: BorderRadius.circular(9),
-                child: ScaleTransition(
-                  scale: isUrgentTime ? _timerPulseAnim : const AlwaysStoppedAnimation(1.0),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+              // Logo & Title Tag
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
                     decoration: BoxDecoration(
-                      color: game.isTimeAttackMode
-                          ? (isUrgentTime
-                              ? const Color(0xFFEF4444).withValues(alpha: 0.25)
-                              : const Color(0xFF0F172A))
-                          : const Color(0xFF10B981).withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(9),
-                      border: Border.all(
-                        color: game.isTimeAttackMode
-                            ? (isUrgentTime ? const Color(0xFFEF4444) : const Color(0xFF38BDF8).withValues(alpha: 0.4))
-                            : const Color(0xFF10B981).withValues(alpha: 0.5),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF0284C7), Color(0xFF6366F1)],
                       ),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF0284C7).withValues(alpha: 0.35),
+                          blurRadius: 6,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          game.isTimeAttackMode ? Icons.timer_outlined : Icons.spa_rounded,
-                          color: game.isTimeAttackMode
-                              ? (isUrgentTime ? const Color(0xFFEF4444) : const Color(0xFF38BDF8))
-                              : const Color(0xFF34D399),
-                          size: 13,
-                        ),
-                        const SizedBox(width: 4),
+                        Icon(Icons.diamond_rounded, color: Colors.white, size: 12),
+                        SizedBox(width: 4),
                         Text(
-                          game.isTimeAttackMode ? '${game.remainingSeconds}s' : 'Santai',
+                          'BLOCK BLAST',
                           style: TextStyle(
-                            color: game.isTimeAttackMode
-                                ? (isUrgentTime ? const Color(0xFFEF4444) : Colors.white)
-                                : const Color(0xFF34D399),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11.5,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 10.5,
+                            letterSpacing: 0.8,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ),
+                ],
               ),
 
-              // Actions: Sound Toggle, Restart, Minimize, Close
-              Row(
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      BlockBlastAudio.instance.isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
-                      color: BlockBlastAudio.instance.isMuted ? const Color(0xFF64748B) : const Color(0xFF38BDF8),
-                      size: 18,
+              // Capsule Control Toolbar (Mode, Audio, Restart, Minimize, Close)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F172A).withValues(alpha: 0.75),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Mode Switcher (Santai vs 60s)
+                    InkWell(
+                      onTap: () {
+                        game.toggleTimeMode();
+                        HapticFeedback.selectionClick();
+                      },
+                      borderRadius: BorderRadius.circular(7),
+                      child: ScaleTransition(
+                        scale: isUrgentTime ? _timerPulseAnim : const AlwaysStoppedAnimation(1.0),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2.5),
+                          decoration: BoxDecoration(
+                            color: game.isTimeAttackMode
+                                ? (isUrgentTime
+                                    ? const Color(0xFFEF4444).withValues(alpha: 0.25)
+                                    : const Color(0xFF0284C7).withValues(alpha: 0.25))
+                                : const Color(0xFF10B981).withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(7),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                game.isTimeAttackMode ? Icons.timer_outlined : Icons.spa_rounded,
+                                color: game.isTimeAttackMode
+                                    ? (isUrgentTime ? const Color(0xFFEF4444) : const Color(0xFF38BDF8))
+                                    : const Color(0xFF34D399),
+                                size: 12,
+                              ),
+                              const SizedBox(width: 3.5),
+                              Text(
+                                game.isTimeAttackMode ? '${game.remainingSeconds}s' : 'Santai',
+                                style: TextStyle(
+                                  color: game.isTimeAttackMode
+                                      ? (isUrgentTime ? const Color(0xFFEF4444) : Colors.white)
+                                      : const Color(0xFF34D399),
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 10.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                    tooltip: BlockBlastAudio.instance.isMuted ? 'Nyalakan Suara' : 'Bisukan Suara',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onPressed: () {
-                      setState(() {
-                        BlockBlastAudio.instance.isMuted = !BlockBlastAudio.instance.isMuted;
-                      });
-                      HapticFeedback.selectionClick();
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.refresh, color: Color(0xFF94A3B8), size: 18),
-                    tooltip: 'Ulang Permainan',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onPressed: () {
-                      setState(() {
-                        _selectedPieceIndex = null;
-                        _draggingPieceIndex = null;
-                        _hoverRow = null;
-                        _hoverCol = null;
-                        _lastHandledBlastTimestamp = null;
-                        _lastCelebratedLevel = 1;
-                        game.initGame();
-                      });
-                    },
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.remove, color: Color(0xFF38BDF8), size: 20),
-                    tooltip: 'Minimize ke Bubble Chat',
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onPressed: widget.onMinimize,
-                  ),
-                  if (widget.onClose != null) ...[
-                    const SizedBox(width: 8),
+
+                    const SizedBox(width: 4),
+                    Container(width: 1, height: 13, color: Colors.white12),
+                    const SizedBox(width: 4),
+
+                    // Audio Toggle
                     IconButton(
-                      icon: const Icon(Icons.close, color: Color(0xFF94A3B8), size: 18),
-                      tooltip: 'Tutup',
+                      icon: Icon(
+                        BlockBlastAudio.instance.isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                        color: BlockBlastAudio.instance.isMuted ? const Color(0xFF64748B) : const Color(0xFF38BDF8),
+                        size: 16,
+                      ),
+                      tooltip: BlockBlastAudio.instance.isMuted ? 'Nyalakan Suara' : 'Bisukan Suara',
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
-                      onPressed: widget.onClose,
+                      onPressed: () {
+                        setState(() {
+                          BlockBlastAudio.instance.isMuted = !BlockBlastAudio.instance.isMuted;
+                        });
+                        HapticFeedback.selectionClick();
+                      },
                     ),
+
+                    const SizedBox(width: 6),
+
+                    // Restart
+                    IconButton(
+                      icon: const Icon(Icons.refresh_rounded, color: Color(0xFF94A3B8), size: 16),
+                      tooltip: 'Ulang Permainan',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: () {
+                        setState(() {
+                          _selectedPieceIndex = null;
+                          _draggingPieceIndex = null;
+                          _hoverRow = null;
+                          _hoverCol = null;
+                          _lastHandledBlastTimestamp = null;
+                          _lastCelebratedLevel = 1;
+                          game.initGame();
+                        });
+                      },
+                    ),
+
+                    const SizedBox(width: 6),
+
+                    // Minimize
+                    IconButton(
+                      icon: const Icon(Icons.remove_rounded, color: Color(0xFF38BDF8), size: 18),
+                      tooltip: 'Minimize ke Bubble Chat',
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      onPressed: widget.onMinimize,
+                    ),
+
+                    if (widget.onClose != null) ...[
+                      const SizedBox(width: 6),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, color: Color(0xFF94A3B8), size: 16),
+                        tooltip: 'Tutup',
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: widget.onClose,
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ],
           ),
 
-          const SizedBox(height: 4),
+          const SizedBox(height: 5),
 
-          // Score & High Score Row
+          // BARIS 2: Modern 3-Part Arcade Stats Deck (Score, Level & EXP, Best)
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Current Score with Flying Points Bounce
-              Row(
-                children: [
-                  ScaleTransition(
-                    scale: _scoreBounceAnim,
-                    child: Container(
-                      key: _scoreBadgeKey,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0F172A),
-                        borderRadius: BorderRadius.circular(7),
-                        border: Border.all(
-                          color: const Color(0xFF10B981).withValues(alpha: 0.6),
-                        ),
-                      ),
-                      child: Row(
+              // 1. Current Score Card
+              Expanded(
+                flex: 11,
+                child: Container(
+                  key: _scoreBadgeKey,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        const Color(0xFF0F172A),
+                        const Color(0xFF10B981).withValues(alpha: 0.12),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.45),
+                      width: 1.0,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.flash_on, color: Color(0xFF10B981), size: 15),
-                          const SizedBox(width: 3),
+                          Icon(Icons.flash_on_rounded, color: Color(0xFF10B981), size: 11),
+                          SizedBox(width: 2),
                           Text(
-                            '${game.score}',
-                            style: const TextStyle(
-                              color: Colors.white,
+                            'SKOR',
+                            style: TextStyle(
+                              color: Color(0xFF6EE7B7),
                               fontWeight: FontWeight.w900,
-                              fontSize: 15,
+                              fontSize: 9.0,
+                              letterSpacing: 0.6,
                             ),
                           ),
                         ],
                       ),
-                    ),
+                      const SizedBox(height: 1),
+                      ScaleTransition(
+                        scale: _scoreBounceAnim,
+                        child: Text(
+                          '${game.score}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16.0,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    game.levelTitle,
-                    style: const TextStyle(
-                      color: Color(0xFF94A3B8),
-                      fontSize: 10.0,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
+                ),
               ),
 
-              // High Score
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A),
-                  borderRadius: BorderRadius.circular(7),
-                  border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.4)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.emoji_events, color: Color(0xFFF59E0B), size: 13),
-                    const SizedBox(width: 3),
-                    Text(
-                      'BEST: ${game.highScore}',
-                      style: const TextStyle(
-                        color: Color(0xFFF59E0B),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 10.0,
-                      ),
+              const SizedBox(width: 6),
+
+              // 2. Level & EXP Progress Card (Integrated!)
+              Expanded(
+                flex: 14,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        const Color(0xFF0F172A),
+                        const Color(0xFF6366F1).withValues(alpha: 0.14),
+                      ],
                     ),
-                  ],
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: const Color(0xFF6366F1).withValues(alpha: 0.4),
+                      width: 1.0,
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.star_rounded, color: Colors.amber, size: 12),
+                              const SizedBox(width: 2),
+                              Text(
+                                'LV.${game.level}',
+                                style: const TextStyle(
+                                  color: Color(0xFFFDE047),
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 10.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Flexible(
+                            child: Text(
+                              game.levelTitle,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFF94A3B8),
+                                fontSize: 9.0,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      // Integrated EXP Progress Bar
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: Container(
+                          height: 4.5,
+                          width: double.infinity,
+                          color: Colors.black45,
+                          child: FractionallySizedBox(
+                            alignment: Alignment.centerLeft,
+                            widthFactor: game.expProgress.clamp(0.0, 1.0),
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [Color(0xFF06B6D4), Color(0xFF10B981)],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 6),
+
+              // 3. High Score / Best Card
+              Expanded(
+                flex: 11,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        const Color(0xFF0F172A),
+                        const Color(0xFFF59E0B).withValues(alpha: 0.12),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.45),
+                      width: 1.0,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.emoji_events_rounded, color: Color(0xFFF59E0B), size: 11),
+                          SizedBox(width: 2),
+                          Text(
+                            'BEST',
+                            style: TextStyle(
+                              color: Color(0xFFFCD34D),
+                              fontWeight: FontWeight.w900,
+                              fontSize: 9.0,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        '${game.highScore}',
+                        style: const TextStyle(
+                          color: Color(0xFFFBBF24),
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16.0,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -688,48 +848,43 @@ class _BlockBlastViewState extends State<BlockBlastView>
     );
   }
 
-  Widget _buildExpBar(BlockBlastGame game) {
-    return Container(
-      height: 3,
-      width: double.infinity,
-      color: const Color(0xFF0F172A),
-      child: FractionallySizedBox(
-        alignment: Alignment.centerLeft,
-        widthFactor: game.expProgress,
-        child: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF06B6D4), Color(0xFF10B981)],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildComboToast(BlockBlastGame game) {
-    if (game.lastBlast == null) return const SizedBox(height: 2);
+    if (game.lastBlast == null) return const SizedBox(height: 3);
 
     final blast = game.lastBlast!;
     return Padding(
-      padding: const EdgeInsets.only(top: 2),
+      padding: const EdgeInsets.symmetric(vertical: 2),
       child: ScaleTransition(
         scale: _comboScaleAnim,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2.5),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFFF59E0B), Color(0xFFEF4444)],
             ),
             borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFEF4444).withValues(alpha: 0.4),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-          child: Text(
-            '${blast.comboMessage} +${blast.pointsEarned} PTS (+${blast.bonusSeconds}s ⏱️)',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 10.0,
-              fontWeight: FontWeight.w900,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.local_fire_department_rounded, color: Colors.white, size: 12),
+              const SizedBox(width: 3),
+              Text(
+                '${blast.comboMessage} +${blast.pointsEarned} PTS${blast.bonusSeconds > 0 ? ' (+${blast.bonusSeconds}s ⏱️)' : ''}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10.0,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
           ),
         ),
       ),
