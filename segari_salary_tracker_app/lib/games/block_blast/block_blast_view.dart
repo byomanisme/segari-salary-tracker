@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../widgets/pixel_mascot_painter.dart';
@@ -200,24 +201,30 @@ class _BlockBlastViewState extends State<BlockBlastView>
     );
   }
 
-  // --- Real Block Blast Coordinate Tracker ---
-  void _handleDragUpdate(Offset globalPos, BlockShape piece) {
+  // --- Real Block Blast Coordinate Tracker (Laser-Precise 1:1 Alignment) ---
+  void _handleDragUpdate(Offset globalPos, BlockShape piece, double cellPx) {
     final RenderBox? gridBox = _gridKey.currentContext?.findRenderObject() as RenderBox?;
     if (gridBox == null) return;
 
     final localPos = gridBox.globalToLocal(globalPos);
-    final cellSize = gridBox.size.width / BlockBlastGame.boardSize;
+    final cellStep = cellPx + 3.0; // cellPx + 3px gap between tiles
+    const double verticalLift = 65.0; // Piece floats 65px directly above finger
 
-    // 1. Horizontal Alignment (Sumbu X Pas Lurus Atas-Bawah)
-    final pieceWidthPx = piece.cols * cellSize;
-    final targetCol = ((localPos.dx - (pieceWidthPx / 2.0)) / cellSize).round();
+    // Total width and height of floating piece (cells + 3px gaps)
+    final totalPieceW = piece.cols * cellPx + (piece.cols - 1) * 3.0;
+    final totalPieceH = piece.rows * cellPx + (piece.rows - 1) * 3.0;
 
-    // 2. Vertical Distance (Jarak Y Konstan di Atas Jari ~75px)
-    final pieceHeightPx = piece.rows * cellSize;
-    final fixedOffsetY = cellSize * 2.2;
-    final targetRow = ((localPos.dy - fixedOffsetY - (pieceHeightPx / 2.0)) / cellSize).round();
+    // Top-left corner of the floating piece in gridBox coordinates
+    final pieceTopLeftX = localPos.dx - (totalPieceW / 2.0);
+    final pieceTopLeftY = localPos.dy - totalPieceH - verticalLift;
 
-    // 3. SHADOW VISIBILITY BASED ON SHADOW'S TARGET ON BOARD:
+    // Grid tiles start at (5.0, 5.0) inside gridBox due to 5px padding
+    final relX = pieceTopLeftX - 5.0;
+    final relY = pieceTopLeftY - 5.0;
+
+    final targetCol = (relX / cellStep).round();
+    final targetRow = (relY / cellStep).round();
+
     // Shadow appears as long as targetRow & targetCol fit on the 8x8 board!
     // This allows the finger to comfortably sit below the board when placing on bottom rows!
     final bool isWithinBoardTarget = targetRow >= 0 &&
@@ -233,8 +240,6 @@ class _BlockBlastViewState extends State<BlockBlastView>
         });
       }
     } else {
-      // If dragged out of board target range (e.g. pulled back down to tray or off to sides),
-      // cleanly hide the shadow so it never freezes or stays stuck on the board!
       if (_hoverRow != null || _hoverCol != null) {
         setState(() {
           _hoverRow = null;
@@ -262,9 +267,8 @@ class _BlockBlastViewState extends State<BlockBlastView>
     if (widget.game.canPlace(piece, row, col)) {
       final RenderBox? gridBox = _gridKey.currentContext?.findRenderObject() as RenderBox?;
       if (gridBox != null) {
-        final size = gridBox.size;
-        final cellW = size.width / BlockBlastGame.boardSize;
-        final cellH = size.height / BlockBlastGame.boardSize;
+        final cellSize = (gridBox.size.width - 10 - 21) / BlockBlastGame.boardSize;
+        final cellStep = cellSize + 3.0;
 
         final cellRects = <Rect>[];
         final cellCenters = <Offset>[];
@@ -274,14 +278,16 @@ class _BlockBlastViewState extends State<BlockBlastView>
             if (piece.matrix[r][c] == 1) {
               final targetR = row + r;
               final targetC = col + c;
+              final left = 5.0 + targetC * cellStep;
+              final top = 5.0 + targetR * cellStep;
               final rect = Rect.fromLTWH(
-                targetC * cellW + 1.5,
-                targetR * cellH + 1.5,
-                cellW - 3.0,
-                cellH - 3.0,
+                left,
+                top,
+                cellSize,
+                cellSize,
               );
               cellRects.add(rect);
-              cellCenters.add(Offset(targetC * cellW + cellW / 2, targetR * cellH + cellH / 2));
+              cellCenters.add(Offset(left + cellSize / 2, top + cellSize / 2));
               _recentlyPlacedCells.add('$targetR-$targetC');
             }
           }
@@ -350,9 +356,18 @@ class _BlockBlastViewState extends State<BlockBlastView>
   Widget build(BuildContext context) {
     final game = widget.game;
     final screenW = MediaQuery.of(context).size.width;
-    // Rampingkan: board square width tightly bounded
-    final boardSize = (screenW - 28 - 20).clamp(270.0, 345.0);
-    final cellPx = (boardSize - 10 - 7 * 3) / BlockBlastGame.boardSize;
+    final screenH = MediaQuery.of(context).size.height;
+
+    // Responsive board size: Fits both width and height, leaving ample room for tips & tray
+    final maxBoardW = (screenW - 44).clamp(240.0, 340.0);
+    // Vertical budget: screenH - header (66) - exp (3) - tips (44) - tray (86) - safe padding (75)
+    final maxBoardH = (screenH - 274).clamp(230.0, 340.0);
+    final rawBoardSize = min(maxBoardW, maxBoardH);
+
+    // Integer cellPx guarantees zero subpixel rounding drift
+    final cellPx = ((rawBoardSize - 10 - 21) / BlockBlastGame.boardSize).floorToDouble();
+    final boardInnerSize = cellPx * BlockBlastGame.boardSize + 21; // 8 cells + 7 gaps of 3px
+    final boardTotalSize = boardInnerSize + 10; // + 5px padding each side
 
     return BlastParticleOverlay(
       manager: _particleManager,
@@ -375,7 +390,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
         child: ClipRRect(
           borderRadius: BorderRadius.circular(24),
           child: Column(
-            mainAxisSize: MainAxisSize.min, // SNUG FIT: NO DEAD SPACE ABOVE OR BELOW!
+            mainAxisSize: MainAxisSize.min,
             children: [
               // 1. Header (Level, Mode Toggle, Score, High Score, Actions)
               _buildHeader(game),
@@ -390,8 +405,8 @@ class _BlockBlastViewState extends State<BlockBlastView>
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 child: SizedBox(
-                  width: boardSize,
-                  height: boardSize,
+                  width: boardTotalSize,
+                  height: boardTotalSize,
                   child: AnimatedBuilder(
                     animation: _particleManager,
                     builder: (context, child) {
@@ -400,17 +415,21 @@ class _BlockBlastViewState extends State<BlockBlastView>
                         child: child,
                       );
                     },
-                    child: _buildBoard(game, boardSize, cellPx),
+                    child: _buildBoard(game, boardTotalSize, cellPx),
                   ),
                 ),
               ),
 
-              // 5. Tips, Tricks & Fun Facts Card (Multi-line, perfectly readable!)
+              const SizedBox(height: 3),
+
+              // 5. Tips, Tricks & Fun Facts Card (Separated cleanly, never covers board!)
               _buildFunFactBar(game),
+
+              const SizedBox(height: 3),
 
               // 6. Piece Tray (1:1 Drag Scale feedback)
               Container(
-                height: 88,
+                height: 86,
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: const BoxDecoration(
                   color: Color(0xFF1E293B),
@@ -741,139 +760,177 @@ class _BlockBlastViewState extends State<BlockBlastView>
         ),
       ),
       child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          // 8x8 Grid Tiles
-          GridView.builder(
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: BlockBlastGame.boardSize * BlockBlastGame.boardSize,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: BlockBlastGame.boardSize,
-              crossAxisSpacing: 3,
-              mainAxisSpacing: 3,
-            ),
-            itemBuilder: (context, index) {
-              final r = index ~/ BlockBlastGame.boardSize;
-              final c = index % BlockBlastGame.boardSize;
-              final cellColor = game.board[r][c];
-              final isRecentlyPlaced = _recentlyPlacedCells.contains('$r-$c');
-              final bonusTile = game.bonusCells['$r-$c'];
+          // 8x8 Grid Tiles (Rigid Column of Rows: Zero overflow, zero scroll drift!)
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(BlockBlastGame.boardSize, (r) {
+              return Padding(
+                padding: EdgeInsets.only(bottom: r < BlockBlastGame.boardSize - 1 ? 3.0 : 0.0),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(BlockBlastGame.boardSize, (c) {
+                    final cellColor = game.board[r][c];
+                    final isRecentlyPlaced = _recentlyPlacedCells.contains('$r-$c');
+                    final bonusTile = game.bonusCells['$r-$c'];
 
-              // Check if cell is occupied by slithering mascot
-              final mascot = game.currentMascot;
-              final isMascotSegment = mascot != null && mascot.occupies(r, c) && cellColor == null;
-              final mascotSegIndex = isMascotSegment ? mascot.indexOf(r, c) : -1;
+                    // Check if cell is occupied by slithering mascot
+                    final mascot = game.currentMascot;
+                    final isMascotSegment = mascot != null && mascot.occupies(r, c) && cellColor == null;
+                    final mascotSegIndex = isMascotSegment ? mascot.indexOf(r, c) : -1;
 
-              // Ghost shadow check: ONLY visible when placement is 100% valid! (Official Block Blast clean style)
-              bool isGhost = false;
-              Color? ghostColor;
+                    // Ghost shadow check: ONLY visible when placement is 100% valid!
+                    bool isGhost = false;
+                    Color? ghostColor;
 
-              if (activePiece != null && _hoverRow != null && _hoverCol != null) {
-                final canPlaceCurrent = game.canPlace(activePiece, _hoverRow!, _hoverCol!);
-                if (canPlaceCurrent) {
-                  final offsetR = r - _hoverRow!;
-                  final offsetC = c - _hoverCol!;
-                  if (offsetR >= 0 &&
-                      offsetR < activePiece.rows &&
-                      offsetC >= 0 &&
-                      offsetC < activePiece.cols) {
-                    if (activePiece.matrix[offsetR][offsetC] == 1) {
-                      isGhost = true;
-                      ghostColor = activePiece.color;
+                    if (activePiece != null && _hoverRow != null && _hoverCol != null) {
+                      final canPlaceCurrent = game.canPlace(activePiece, _hoverRow!, _hoverCol!);
+                      if (canPlaceCurrent) {
+                        final offsetR = r - _hoverRow!;
+                        final offsetC = c - _hoverCol!;
+                        if (offsetR >= 0 &&
+                            offsetR < activePiece.rows &&
+                            offsetC >= 0 &&
+                            offsetC < activePiece.cols) {
+                          if (activePiece.matrix[offsetR][offsetC] == 1) {
+                            isGhost = true;
+                            ghostColor = activePiece.color;
+                          }
+                        }
+                      }
                     }
-                  }
-                }
-              }
 
-              return InkWell(
-                onTap: () {
-                  if (isMascotSegment) {
-                    final cellCenter = Offset(c * cellPx + cellPx / 2, r * cellPx + cellPx / 2);
-                    _onMascotSegmentTapped(r, c, cellCenter);
-                  } else if (_selectedPieceIndex != null && activePiece != null) {
-                    _handlePlacement(_selectedPieceIndex!, r, c);
-                  }
-                },
-                borderRadius: BorderRadius.circular(4),
-                child: _buildCellTile(
-                  cellColor: cellColor,
-                  isGhost: isGhost,
-                  ghostColor: ghostColor,
-                  isRecentlyPlaced: isRecentlyPlaced,
-                  bonusTile: bonusTile,
-                  mascot: isMascotSegment ? mascot : null,
-                  mascotSegIndex: mascotSegIndex,
-                  cellSize: cellPx,
+                    return Padding(
+                      padding: EdgeInsets.only(right: c < BlockBlastGame.boardSize - 1 ? 3.0 : 0.0),
+                      child: SizedBox(
+                        width: cellPx,
+                        height: cellPx,
+                        child: InkWell(
+                          onTap: () {
+                            if (isMascotSegment) {
+                              final cellCenter = Offset(5.0 + c * (cellPx + 3.0) + cellPx / 2, 5.0 + r * (cellPx + 3.0) + cellPx / 2);
+                              _onMascotSegmentTapped(r, c, cellCenter);
+                            } else if (_selectedPieceIndex != null && activePiece != null) {
+                              _handlePlacement(_selectedPieceIndex!, r, c);
+                            }
+                          },
+                          borderRadius: BorderRadius.circular(4),
+                          child: _buildCellTile(
+                            cellColor: cellColor,
+                            isGhost: isGhost,
+                            ghostColor: ghostColor,
+                            isRecentlyPlaced: isRecentlyPlaced,
+                            bonusTile: bonusTile,
+                            mascot: isMascotSegment ? mascot : null,
+                            mascotSegIndex: mascotSegIndex,
+                            cellSize: cellPx,
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
                 ),
               );
-            },
+            }),
           ),
 
           // Game Over Overlay with Revive / Second Chance!
           if (game.isGameOver)
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.88),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        '💥 GAME OVER 💥',
-                        style: TextStyle(
-                          color: Color(0xFFEF4444),
-                          fontSize: 22,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.5,
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.88),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          '💥 GAME OVER 💥',
+                          style: TextStyle(
+                            color: Color(0xFFEF4444),
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.5,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        game.isTimeAttackMode && game.remainingSeconds <= 0
-                            ? '⏰ WAKTU SHIFT HABIS!'
-                            : '🚫 TIDAK ADA KOTAK MUAT!',
-                        style: const TextStyle(
-                          color: Color(0xFFFBBF24),
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
+                        const SizedBox(height: 6),
+                        Text(
+                          game.isTimeAttackMode && game.remainingSeconds <= 0
+                              ? '⏰ WAKTU SHIFT HABIS!'
+                              : '🚫 TIDAK ADA KOTAK MUAT!',
+                          style: const TextStyle(
+                            color: Color(0xFFFBBF24),
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Skor Akhir: ${game.score}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
+                        const SizedBox(height: 10),
+                        Text(
+                          'Skor Akhir: ${game.score}',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
-                      ),
-                      Text(
-                        'Pangkat: ${game.levelTitle} (Lv. ${game.level})',
-                        style: const TextStyle(
-                          color: Color(0xFF94A3B8),
-                          fontSize: 12,
+                        Text(
+                          'Pangkat: ${game.levelTitle} (Lv. ${game.level})',
+                          style: const TextStyle(
+                            color: Color(0xFF94A3B8),
+                            fontSize: 12,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
+                        const SizedBox(height: 16),
 
-                      // Second Chance (Revive) Button if available!
-                      if (game.canRevive) ...[
+                        // Second Chance (Revive) Button if available!
+                        if (game.canRevive) ...[
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFF59E0B),
+                              foregroundColor: Colors.black87,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                            ),
+                            icon: const Icon(Icons.bolt, size: 18),
+                            label: const Text(
+                              '⚡ Kesempatan Kedua (Revive)',
+                              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _selectedPieceIndex = null;
+                                _draggingPieceIndex = null;
+                                _hoverRow = null;
+                                _hoverCol = null;
+                                game.reviveGame();
+                              });
+                              HapticFeedback.heavyImpact();
+                              SystemSound.play(SystemSoundType.click);
+                            },
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+
                         ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFF59E0B),
-                            foregroundColor: Colors.black87,
+                            backgroundColor: const Color(0xFF10B981),
+                            foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
                           ),
-                          icon: const Icon(Icons.bolt, size: 18),
+                          icon: const Icon(Icons.replay, size: 18),
                           label: const Text(
-                            '⚡ Kesempatan Kedua (Revive)',
-                            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+                            'Main Lagi',
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                           onPressed: () {
                             setState(() {
@@ -881,42 +938,14 @@ class _BlockBlastViewState extends State<BlockBlastView>
                               _draggingPieceIndex = null;
                               _hoverRow = null;
                               _hoverCol = null;
-                              game.reviveGame();
+                              _lastHandledBlastTimestamp = null;
+                              _lastCelebratedLevel = 1;
+                              game.initGame();
                             });
-                            HapticFeedback.heavyImpact();
-                            SystemSound.play(SystemSoundType.click);
                           },
                         ),
-                        const SizedBox(height: 8),
                       ],
-
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF10B981),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
-                        ),
-                        icon: const Icon(Icons.replay, size: 18),
-                        label: const Text(
-                          'Main Lagi',
-                          style: TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _selectedPieceIndex = null;
-                            _draggingPieceIndex = null;
-                            _hoverRow = null;
-                            _hoverCol = null;
-                            _lastHandledBlastTimestamp = null;
-                            _lastCelebratedLevel = 1;
-                            game.initGame();
-                          });
-                        },
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -1095,6 +1124,8 @@ class _BlockBlastViewState extends State<BlockBlastView>
         }
 
         final isSelected = _selectedPieceIndex == index;
+        final totalPieceW = piece.cols * cellPx + (piece.cols - 1) * 3.0;
+        final totalPieceH = piece.rows * cellPx + (piece.rows - 1) * 3.0;
 
         return Expanded(
           child: InkWell(
@@ -1111,11 +1142,12 @@ class _BlockBlastViewState extends State<BlockBlastView>
             borderRadius: BorderRadius.circular(12),
             child: Draggable<int>(
               data: index,
-              // Lifted feedback matching EXACT 1:1 scale of board grid!
+              dragAnchorStrategy: pointerDragAnchorStrategy,
+              // Lifted feedback matching EXACT 1:1 scale and spacing of board grid!
               feedback: Material(
                 color: Colors.transparent,
                 child: Transform.translate(
-                  offset: Offset(-(piece.cols * cellPx) / 2.0, -(piece.rows * cellPx) - (cellPx * 2.2)),
+                  offset: Offset(-totalPieceW / 2.0, -totalPieceH - 65.0),
                   child: _buildShapeWidget(piece, isPreview: true, cellSize: cellPx),
                 ),
               ),
@@ -1131,7 +1163,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
                 HapticFeedback.lightImpact();
               },
               onDragUpdate: (details) {
-                _handleDragUpdate(details.globalPosition, piece);
+                _handleDragUpdate(details.globalPosition, piece, cellPx);
               },
               onDragEnd: (_) {
                 _handleDragEnd(index, piece);
@@ -1175,56 +1207,62 @@ class _BlockBlastViewState extends State<BlockBlastView>
   }
 
   Widget _buildShapeWidget(BlockShape shape, {bool isPreview = false, double cellSize = 13.5}) {
+    final double spacing = isPreview ? 3.0 : 1.5;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: List.generate(shape.rows, (r) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: List.generate(shape.cols, (c) {
-            final isFilled = shape.matrix[r][c] == 1;
-            return Container(
-              width: cellSize,
-              height: cellSize,
-              margin: EdgeInsets.all(cellSize > 20 ? 1.0 : 0.8),
-              decoration: isFilled
-                  ? BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          shape.color.withValues(alpha: 0.98),
-                          shape.color,
-                          shape.color.withValues(alpha: 0.80),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(cellSize > 20 ? 5 : 3),
-                      border: Border(
-                        top: BorderSide(color: Colors.white.withValues(alpha: 0.50), width: cellSize > 20 ? 1.5 : 1.0),
-                        left: BorderSide(color: Colors.white.withValues(alpha: 0.38), width: cellSize > 20 ? 1.5 : 1.0),
-                        bottom: BorderSide(color: Colors.black.withValues(alpha: 0.40), width: cellSize > 20 ? 1.5 : 1.0),
-                        right: BorderSide(color: Colors.black.withValues(alpha: 0.28), width: cellSize > 20 ? 1.5 : 1.0),
-                      ),
-                      boxShadow: isPreview
-                          ? [
-                              BoxShadow(
-                                color: shape.color.withValues(alpha: 0.65),
-                                blurRadius: 10,
-                                offset: const Offset(0, 3),
-                              ),
-                            ]
-                          : null,
-                    )
-                  : const BoxDecoration(color: Colors.transparent),
-              child: isFilled
-                  ? Center(
-                      child: Text(
-                        shape.emoji,
-                        style: TextStyle(fontSize: cellSize * (cellSize > 20 ? 0.48 : 0.65)),
-                      ),
-                    )
-                  : null,
-            );
-          }),
+        return Padding(
+          padding: EdgeInsets.only(bottom: r < shape.rows - 1 ? spacing : 0.0),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(shape.cols, (c) {
+              final isFilled = shape.matrix[r][c] == 1;
+              return Padding(
+                padding: EdgeInsets.only(right: c < shape.cols - 1 ? spacing : 0.0),
+                child: Container(
+                  width: cellSize,
+                  height: cellSize,
+                  decoration: isFilled
+                      ? BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              shape.color.withValues(alpha: 0.98),
+                              shape.color,
+                              shape.color.withValues(alpha: 0.80),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(cellSize > 20 ? 5 : 3),
+                          border: Border(
+                            top: BorderSide(color: Colors.white.withValues(alpha: 0.50), width: cellSize > 20 ? 1.5 : 1.0),
+                            left: BorderSide(color: Colors.white.withValues(alpha: 0.38), width: cellSize > 20 ? 1.5 : 1.0),
+                            bottom: BorderSide(color: Colors.black.withValues(alpha: 0.40), width: cellSize > 20 ? 1.5 : 1.0),
+                            right: BorderSide(color: Colors.black.withValues(alpha: 0.28), width: cellSize > 20 ? 1.5 : 1.0),
+                          ),
+                          boxShadow: isPreview
+                              ? [
+                                  BoxShadow(
+                                    color: shape.color.withValues(alpha: 0.65),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ]
+                              : null,
+                        )
+                      : const BoxDecoration(color: Colors.transparent),
+                  child: isFilled
+                      ? Center(
+                          child: Text(
+                            shape.emoji,
+                            style: TextStyle(fontSize: cellSize * (cellSize > 20 ? 0.48 : 0.65)),
+                          ),
+                        )
+                      : null,
+                ),
+              );
+            }),
+          ),
         );
       }),
     );

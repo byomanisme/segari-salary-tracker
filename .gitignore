@@ -41,3 +41,6 @@ migrate_working_dir/
 *.apk
 archive/
 user_synced_data.json
+.env
+.env.*
+*.pem
