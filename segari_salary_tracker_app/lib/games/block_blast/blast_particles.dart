@@ -9,7 +9,10 @@ class BlastParticle {
   double size;
   Color color;
   double opacity;
-  double life; // 0.0 to 1.0
+  double life;
+  bool isCube;
+  double rotation;
+  double vRot;
 
   BlastParticle({
     required this.x,
@@ -20,13 +23,17 @@ class BlastParticle {
     required this.color,
     this.opacity = 1.0,
     this.life = 1.0,
+    this.isCube = false,
+    this.rotation = 0.0,
+    this.vRot = 0.0,
   });
 
   bool update(double dt) {
     x += vx * dt * 60;
     y += vy * dt * 60;
-    vy += 0.15 * dt * 60; // slight gravity
-    life -= 1.8 * dt;
+    vy += (isCube ? 0.25 : 0.15) * dt * 60; // gravity
+    rotation += vRot * dt * 60;
+    life -= (isCube ? 1.4 : 1.8) * dt;
     opacity = life.clamp(0.0, 1.0);
     return life > 0;
   }
@@ -218,6 +225,10 @@ class BlastParticleManager extends ChangeNotifier {
   final List<FlyingScoreBadge> flyingBadges = [];
   final Random _random = Random();
 
+  double shakeIntensity = 0.0;
+  Offset shakeOffset = Offset.zero;
+  double _shakeTimer = 0.0;
+
   /// Animasi ketika meletakkan balok dengan outline splash persis bentuk balok
   void triggerPlacementSplash({
     required List<Rect> cellRects,
@@ -288,6 +299,9 @@ class BlastParticleManager extends ChangeNotifier {
     required Offset targetScorePos,
     VoidCallback? onScoreReached,
   }) {
+    // Micro-screen shake based on lines or combo
+    shakeIntensity = min(8.0, 3.5 + (points / 200.0));
+
     for (int i = 0; i < cellCenters.length; i++) {
       final center = cellCenters[i];
       final color = colors.isNotEmpty ? colors[i % colors.length] : const Color(0xFF10B981);
@@ -297,22 +311,41 @@ class BlastParticleManager extends ChangeNotifier {
           x: center.dx,
           y: center.dy,
           radius: 6,
-          maxRadius: 36,
+          maxRadius: 38,
           color: color,
         ),
       );
 
-      final count = 7 + _random.nextInt(4);
+      // 4 rotating 3D Cube Shatter particles per cleared cell (Official Block Blast juice!)
+      for (int c = 0; c < 4; c++) {
+        final angle = _random.nextDouble() * 2 * pi;
+        final speed = 2.0 + _random.nextDouble() * 4.5;
+        particles.add(
+          BlastParticle(
+            x: center.dx,
+            y: center.dy,
+            vx: cos(angle) * speed,
+            vy: sin(angle) * speed - 2.2,
+            size: 4.5 + _random.nextDouble() * 2.5,
+            color: color,
+            isCube: true,
+            rotation: _random.nextDouble() * 2 * pi,
+            vRot: (_random.nextDouble() - 0.5) * 0.30,
+          ),
+        );
+      }
+
+      final count = 5 + _random.nextInt(3);
       for (int k = 0; k < count; k++) {
         final angle = _random.nextDouble() * 2 * pi;
-        final speed = 2.2 + _random.nextDouble() * 5.0;
+        final speed = 2.2 + _random.nextDouble() * 4.5;
         particles.add(
           BlastParticle(
             x: center.dx,
             y: center.dy,
             vx: cos(angle) * speed,
             vy: sin(angle) * speed - 1.8,
-            size: 3.5 + _random.nextDouble() * 3.0,
+            size: 3.0 + _random.nextDouble() * 2.5,
             color: color,
           ),
         );
@@ -424,11 +457,23 @@ class BlastParticleManager extends ChangeNotifier {
   }
 
   void update(double dt) {
+    if (shakeIntensity > 0) {
+      _shakeTimer += dt;
+      shakeIntensity = max(0.0, shakeIntensity - dt * 22.0);
+      shakeOffset = Offset(
+        sin(_shakeTimer * 50) * shakeIntensity,
+        cos(_shakeTimer * 50) * (shakeIntensity * 0.7),
+      );
+    } else {
+      shakeOffset = Offset.zero;
+    }
+
     if (particles.isEmpty &&
         shockwaves.isEmpty &&
         outlineSplashes.isEmpty &&
         floatingTexts.isEmpty &&
-        flyingBadges.isEmpty) {
+        flyingBadges.isEmpty &&
+        shakeIntensity <= 0) {
       return;
     }
 
@@ -507,16 +552,34 @@ class BlastParticlePainter extends CustomPainter {
       canvas.drawCircle(Offset(s.x, s.y), s.radius, ringPaint);
     }
 
-    // 3. Draw Particles
+    // 3. Draw Particles (Sparks & Rotating 3D Shatter Cubes)
     final paint = Paint()..style = PaintingStyle.fill;
     for (final p in particles) {
       paint.color = p.color.withValues(alpha: p.opacity);
-      canvas.drawCircle(Offset(p.x, p.y), p.size, paint);
+      if (p.isCube) {
+        canvas.save();
+        canvas.translate(p.x, p.y);
+        canvas.rotate(p.rotation);
+        final rRect = RRect.fromRectAndRadius(
+          Rect.fromCenter(center: Offset.zero, width: p.size * 1.8, height: p.size * 1.8),
+          const Radius.circular(2.5),
+        );
+        canvas.drawRRect(rRect, paint);
 
-      final corePaint = Paint()
-        ..color = Colors.white.withValues(alpha: p.opacity * 0.85)
-        ..style = PaintingStyle.fill;
-      canvas.drawCircle(Offset(p.x, p.y), p.size * 0.45, corePaint);
+        // Subtle jewel bevel stroke on cubes
+        final highlightPaint = Paint()
+          ..color = Colors.white.withValues(alpha: p.opacity * 0.75)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.0;
+        canvas.drawRRect(rRect, highlightPaint);
+        canvas.restore();
+      } else {
+        canvas.drawCircle(Offset(p.x, p.y), p.size, paint);
+        final corePaint = Paint()
+          ..color = Colors.white.withValues(alpha: p.opacity * 0.85)
+          ..style = PaintingStyle.fill;
+        canvas.drawCircle(Offset(p.x, p.y), p.size * 0.45, corePaint);
+      }
     }
 
     // 4. Draw Floating Text (Fades out quickly)

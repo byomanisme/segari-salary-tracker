@@ -43,13 +43,13 @@ class AppUpdateInfo {
 }
 
 class UpdateService {
-  static const String currentVersion = '1.3.6';
-  static const int currentBuildNumber = 19;
+  static const String currentVersion = '1.3.7';
+  static const int currentBuildNumber = 20;
 
   // Live remote update endpoint on user domain
   static const String manifestUrl = 'https://lukmanhakim.id/apk/version.json';
   static const String defaultDownloadUrl =
-      'https://lukmanhakim.id/apk/SegariSalaryTracker-v1.3.6.apk';
+      'https://lukmanhakim.id/apk/SegariSalaryTracker-v1.3.7.apk';
 
   static const String _keyLastSeenVersion = 'segari_last_seen_app_version';
   static const String _keyLastSeenBuild = 'segari_last_seen_build_number';
@@ -57,11 +57,14 @@ class UpdateService {
 
   // Latest Release Notes for current version (shown on first launch after update)
   static final List<String> currentWhatsNewList = [
-    '🐛 Maskot Merayap Hidup: Ulat Sayur & Ular Segari merayap aktif melintasi kotak-kotak kosong seperti di kalender, ketuk untuk klaim bonus kejutan!',
-    '🎮 Presisi Drag & Drop Sempurna: Sumbu X pas lurus atas-bawah, jarak vertikal konstan, dan bayangan otomatis lenyap saat digeser keluar papan.',
-    '📐 Tampilan Ramping & Bebas Dead Space: Menghapus ruang kosong berlebih di atas dan bawah papan sehingga layout pas dan nyaman.',
-    '💡 Tips & Fun Fact Segari Utuh: Teks edukasi bahan Segari kini multi-baris sehingga seluruh kalimat tampil lengkap tanpa terpotong.',
-    '🛡️ Kestabilan Sistem: Peningkatan akurasi penempatan balok dan responsivitas game.',
+    '🧠 Anti-Deadlock Smart Spawner: Algoritma cerdas resmi Block Blast! Menjamin minimal 1 balok selalu muat, tidak ada lagi Game Over mendadak yang tidak adil.',
+    '🎯 Skala Balok di Jari 1:1 Presisi: Saat balok diangkat, ukurannya membesar secara mulus persis sama dengan ukuran kotak di papan (100% akurat).',
+    '🍃 Mode Santai (Untimed Classic): Bebas berpikir rileks tanpa tekanan countdown timer 60s, lengkap dengan tombol switch mode.',
+    '✨ Pembersihan Ghost Preview: Bayangan balok hanya menyala jika posisi valid; kotak merah silang (X) yang mengotori layar resmi dihapus.',
+    '💎 Balok Kristal 3D Glossy: Desain balok diperbarui dengan tekstur kristal beveled dan kilau cahaya sudut atas yang sangat memanjakan mata.',
+    '⚡ Kesempatan Kedua (Revive): Fitur penyelamat yang membersihkan area 4x4 tengah papan saat buntu untuk menyelamatkan kombo dan rekor skor tinggi.',
+    '💥 Ledakan Cube Shatter & Micro-Shake: Efek serpihan kubus 3D pecah berputar dan getaran mikro pada papan saat terjadi kombo baris.',
+    '🎶 Respon Tactile Bertingkat: Tangga getaran haptic dan audio klik dinamis mengikuti tingkatan kombo (Do-Re-Mi-Fa-Sol).',
   ];
 
   /// Check if the user just updated the app to show "What's New"

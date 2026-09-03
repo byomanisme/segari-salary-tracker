@@ -40,37 +40,34 @@ class BlockShape {
   static const Color blue = Color(0xFF3B82F6);    // Daging Sapi Segari 🥩
 
   static String getEmojiForColor(Color color) {
-    final v = color.value;
-    if (v == emerald.value) return '🥦';
-    if (v == orange.value) return '🥕';
-    if (v == rose.value) return '🍅';
-    if (v == amber.value) return '🌽';
-    if (v == purple.value) return '🍆';
-    if (v == cyan.value) return '🐟';
-    if (v == blue.value) return '🥩';
+    if (color == emerald) return '🥦';
+    if (color == orange) return '🥕';
+    if (color == rose) return '🍅';
+    if (color == amber) return '🌽';
+    if (color == purple) return '🍆';
+    if (color == cyan) return '🐟';
+    if (color == blue) return '🥩';
     return '🥬';
   }
 
   static IconData getIconForColor(Color color) {
-    final v = color.value;
-    if (v == emerald.value) return Icons.eco_rounded;
-    if (v == orange.value) return Icons.agriculture_rounded;
-    if (v == rose.value) return Icons.favorite_rounded;
-    if (v == amber.value) return Icons.wb_sunny_rounded;
-    if (v == purple.value) return Icons.bubble_chart_rounded;
-    if (v == cyan.value) return Icons.set_meal_rounded;
+    if (color == emerald) return Icons.eco_rounded;
+    if (color == orange) return Icons.agriculture_rounded;
+    if (color == rose) return Icons.favorite_rounded;
+    if (color == amber) return Icons.wb_sunny_rounded;
+    if (color == purple) return Icons.bubble_chart_rounded;
+    if (color == cyan) return Icons.set_meal_rounded;
     return Icons.restaurant_rounded;
   }
 
   static String getLabelForColor(Color color) {
-    final v = color.value;
-    if (v == emerald.value) return 'Brokoli Hijau Segari 🥦';
-    if (v == orange.value) return 'Wortel Brastagi 🥕';
-    if (v == rose.value) return 'Tomat Merah Lembang 🍅';
-    if (v == amber.value) return 'Jagung Manis Segari 🌽';
-    if (v == purple.value) return 'Terong Ungu Segari 🍆';
-    if (v == cyan.value) return 'Ikan Salmon Segar 🐟';
-    if (v == blue.value) return 'Daging Sapi Segari 🥩';
+    if (color == emerald) return 'Brokoli Hijau Segari 🥦';
+    if (color == orange) return 'Wortel Brastagi 🥕';
+    if (color == rose) return 'Tomat Merah Lembang 🍅';
+    if (color == amber) return 'Jagung Manis Segari 🌽';
+    if (color == purple) return 'Terong Ungu Segari 🍆';
+    if (color == cyan) return 'Ikan Salmon Segar 🐟';
+    if (color == blue) return 'Daging Sapi Segari 🥩';
     return 'Sayuran Segari 🥬';
   }
 
@@ -369,6 +366,30 @@ class BlockShape {
     ];
   }
 
+  bool canFitInBoard(List<List<Color?>> board) {
+    final bSize = board.length;
+    if (rows > bSize || cols > bSize) return false;
+    for (int r = 0; r <= bSize - rows; r++) {
+      for (int c = 0; c <= bSize - cols; c++) {
+        bool fits = true;
+        for (int pr = 0; pr < rows; pr++) {
+          for (int pc = 0; pc < cols; pc++) {
+            if (matrix[pr][pc] == 1 && board[r + pr][c + pc] != null) {
+              fits = false;
+              break;
+            }
+          }
+          if (!fits) break;
+        }
+        if (fits) return true;
+      }
+    }
+    return false;
+  }
+
+  bool get isSmall => blockCount <= 4 && rows <= 2 && cols <= 2;
+  bool get isLarge => blockCount >= 5 || rows >= 3 && cols >= 3 || rows >= 4 || cols >= 4;
+
   static List<BlockShape> getRandomSet(int count) {
     final all = getAllShapes();
     final random = Random();
@@ -377,5 +398,67 @@ class BlockShape {
       set.add(all[random.nextInt(all.length)]);
     }
     return set;
+  }
+
+  /// Official Block Blast algorithm: Anti-Deadlock Smart Spawner
+  /// Guarantees at least 1 fitting piece and maintains balanced size distribution.
+  static List<BlockShape> getSmartSet(List<List<Color?>> board) {
+    final all = getAllShapes();
+    final random = Random();
+    final bSize = board.length;
+
+    // 1. Calculate board density
+    int filledCells = 0;
+    for (int r = 0; r < bSize; r++) {
+      for (int c = 0; c < bSize; c++) {
+        if (board[r][c] != null) filledCells++;
+      }
+    }
+    final density = filledCells / (bSize * bSize);
+
+    // 2. Identify all shapes that can currently fit
+    final fittingShapes = all.where((s) => s.canFitInBoard(board)).toList();
+    final fittingSmall = fittingShapes.where((s) => s.isSmall).toList();
+
+    final result = <BlockShape>[];
+
+    // Guarantee Piece #1: ALWAYS a piece that fits (anti-deadlock)
+    if (fittingShapes.isNotEmpty) {
+      if (density > 0.60 && fittingSmall.isNotEmpty) {
+        // High density: rescue player with small fitting piece
+        result.add(fittingSmall[random.nextInt(fittingSmall.length)]);
+      } else {
+        result.add(fittingShapes[random.nextInt(fittingShapes.length)]);
+      }
+    } else {
+      // Board completely saturated
+      result.add(all[random.nextInt(all.length)]);
+    }
+
+    // Piece #2: Balanced piece
+    if (density > 0.65 && fittingShapes.length > 1) {
+      // Board is very full: make 2nd piece also fitting
+      final remainingFits = fittingShapes.where((s) => s.id != result[0].id).toList();
+      if (remainingFits.isNotEmpty) {
+        result.add(remainingFits[random.nextInt(remainingFits.length)]);
+      } else {
+        result.add(fittingShapes[random.nextInt(fittingShapes.length)]);
+      }
+    } else {
+      // Non-large piece preferred if piece #1 was large
+      final pool = result[0].isLarge ? all.where((s) => !s.isLarge).toList() : all;
+      result.add(pool[random.nextInt(pool.length)]);
+    }
+
+    // Piece #3: Complementary piece (never 3 large pieces in one round)
+    final largeCount = result.where((s) => s.isLarge).length;
+    final finalPool = (largeCount >= 1)
+        ? all.where((s) => !s.isLarge).toList()
+        : all;
+    result.add(finalPool[random.nextInt(finalPool.length)]);
+
+    // Shuffle so the guaranteed fitting piece isn't always in slot 0
+    result.shuffle(random);
+    return result;
   }
 }

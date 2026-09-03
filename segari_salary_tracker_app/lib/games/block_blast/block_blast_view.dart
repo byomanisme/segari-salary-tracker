@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../widgets/pixel_mascot_painter.dart';
@@ -104,7 +103,16 @@ class _BlockBlastViewState extends State<BlockBlastView>
     if (blast != null && blast.timestamp != _lastHandledBlastTimestamp) {
       _lastHandledBlastTimestamp = blast.timestamp;
       _comboAnimController.forward(from: 0.0);
-      HapticFeedback.heavyImpact();
+
+      // Rising tactile & audio cues based on combo progression
+      if (blast.combo >= 4) {
+        HapticFeedback.vibrate();
+      } else if (blast.combo >= 2) {
+        HapticFeedback.heavyImpact();
+      } else {
+        HapticFeedback.mediumImpact();
+      }
+      SystemSound.play(SystemSoundType.click);
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _triggerParticlesForBlast(blast);
@@ -344,6 +352,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
     final screenW = MediaQuery.of(context).size.width;
     // Rampingkan: board square width tightly bounded
     final boardSize = (screenW - 28 - 20).clamp(270.0, 345.0);
+    final cellPx = (boardSize - 10 - 7 * 3) / BlockBlastGame.boardSize;
 
     return BlastParticleOverlay(
       manager: _particleManager,
@@ -368,7 +377,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
           child: Column(
             mainAxisSize: MainAxisSize.min, // SNUG FIT: NO DEAD SPACE ABOVE OR BELOW!
             children: [
-              // 1. Header (Level, Timer, Score, High Score, Actions)
+              // 1. Header (Level, Mode Toggle, Score, High Score, Actions)
               _buildHeader(game),
 
               // 2. EXP Bar
@@ -377,20 +386,29 @@ class _BlockBlastViewState extends State<BlockBlastView>
               // 3. Compact Combo Toast (Only when combo is active)
               _buildComboToast(game),
 
-              // 4. 8x8 Board Container (Exact square, zero blank spaces)
+              // 4. 8x8 Board Container with Micro-Screen Shake on Blast!
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 child: SizedBox(
                   width: boardSize,
                   height: boardSize,
-                  child: _buildBoard(game, boardSize),
+                  child: AnimatedBuilder(
+                    animation: _particleManager,
+                    builder: (context, child) {
+                      return Transform.translate(
+                        offset: _particleManager.shakeOffset,
+                        child: child,
+                      );
+                    },
+                    child: _buildBoard(game, boardSize, cellPx),
+                  ),
                 ),
               ),
 
               // 5. Tips, Tricks & Fun Facts Card (Multi-line, perfectly readable!)
               _buildFunFactBar(game),
 
-              // 6. Piece Tray (Snug height, direct touch)
+              // 6. Piece Tray (1:1 Drag Scale feedback)
               Container(
                 height: 88,
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -398,7 +416,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
                   color: Color(0xFF1E293B),
                   borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
                 ),
-                child: _buildPieceTray(game),
+                child: _buildPieceTray(game, cellPx),
               ),
             ],
           ),
@@ -408,7 +426,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
   }
 
   Widget _buildHeader(BlockBlastGame game) {
-    final isUrgentTime = game.remainingSeconds <= 15;
+    final isUrgentTime = game.isTimeAttackMode && game.remainingSeconds <= 15;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -450,37 +468,50 @@ class _BlockBlastViewState extends State<BlockBlastView>
                 ),
               ),
 
-              // Shift Countdown Timer
-              ScaleTransition(
-                scale: isUrgentTime ? _timerPulseAnim : const AlwaysStoppedAnimation(1.0),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: isUrgentTime
-                        ? const Color(0xFFEF4444).withValues(alpha: 0.25)
-                        : const Color(0xFF0F172A),
-                    borderRadius: BorderRadius.circular(9),
-                    border: Border.all(
-                      color: isUrgentTime ? const Color(0xFFEF4444) : const Color(0xFF38BDF8).withValues(alpha: 0.4),
+              // Mode Indicator & Switcher (Santai vs Tantangan Waktu)
+              InkWell(
+                onTap: () => game.toggleTimeMode(),
+                borderRadius: BorderRadius.circular(9),
+                child: ScaleTransition(
+                  scale: isUrgentTime ? _timerPulseAnim : const AlwaysStoppedAnimation(1.0),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                    decoration: BoxDecoration(
+                      color: game.isTimeAttackMode
+                          ? (isUrgentTime
+                              ? const Color(0xFFEF4444).withValues(alpha: 0.25)
+                              : const Color(0xFF0F172A))
+                          : const Color(0xFF10B981).withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(
+                        color: game.isTimeAttackMode
+                            ? (isUrgentTime ? const Color(0xFFEF4444) : const Color(0xFF38BDF8).withValues(alpha: 0.4))
+                            : const Color(0xFF10B981).withValues(alpha: 0.5),
+                      ),
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.timer_outlined,
-                        color: isUrgentTime ? const Color(0xFFEF4444) : const Color(0xFF38BDF8),
-                        size: 14,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${game.remainingSeconds}s',
-                        style: TextStyle(
-                          color: isUrgentTime ? const Color(0xFFEF4444) : Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 12.5,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          game.isTimeAttackMode ? Icons.timer_outlined : Icons.spa_rounded,
+                          color: game.isTimeAttackMode
+                              ? (isUrgentTime ? const Color(0xFFEF4444) : const Color(0xFF38BDF8))
+                              : const Color(0xFF34D399),
+                          size: 13,
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 4),
+                        Text(
+                          game.isTimeAttackMode ? '${game.remainingSeconds}s' : 'Santai',
+                          style: TextStyle(
+                            color: game.isTimeAttackMode
+                                ? (isUrgentTime ? const Color(0xFFEF4444) : Colors.white)
+                                : const Color(0xFF34D399),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11.5,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -694,10 +725,9 @@ class _BlockBlastViewState extends State<BlockBlastView>
     );
   }
 
-  Widget _buildBoard(BlockBlastGame game, double totalSize) {
+  Widget _buildBoard(BlockBlastGame game, double totalSize, double cellPx) {
     final activePieceIndex = _draggingPieceIndex ?? _selectedPieceIndex;
     final activePiece = activePieceIndex != null ? game.currentPieces[activePieceIndex] : null;
-    final cellPx = (totalSize - 10 - 7 * 3) / BlockBlastGame.boardSize;
 
     return Container(
       key: _gridKey,
@@ -733,22 +763,23 @@ class _BlockBlastViewState extends State<BlockBlastView>
               final isMascotSegment = mascot != null && mascot.occupies(r, c) && cellColor == null;
               final mascotSegIndex = isMascotSegment ? mascot.indexOf(r, c) : -1;
 
-              // Ghost shadow check
+              // Ghost shadow check: ONLY visible when placement is 100% valid! (Official Block Blast clean style)
               bool isGhost = false;
-              bool isValidGhost = false;
               Color? ghostColor;
 
               if (activePiece != null && _hoverRow != null && _hoverCol != null) {
-                final offsetR = r - _hoverRow!;
-                final offsetC = c - _hoverCol!;
-                if (offsetR >= 0 &&
-                    offsetR < activePiece.rows &&
-                    offsetC >= 0 &&
-                    offsetC < activePiece.cols) {
-                  if (activePiece.matrix[offsetR][offsetC] == 1) {
-                    isGhost = true;
-                    isValidGhost = game.canPlace(activePiece, _hoverRow!, _hoverCol!);
-                    ghostColor = activePiece.color;
+                final canPlaceCurrent = game.canPlace(activePiece, _hoverRow!, _hoverCol!);
+                if (canPlaceCurrent) {
+                  final offsetR = r - _hoverRow!;
+                  final offsetC = c - _hoverCol!;
+                  if (offsetR >= 0 &&
+                      offsetR < activePiece.rows &&
+                      offsetC >= 0 &&
+                      offsetC < activePiece.cols) {
+                    if (activePiece.matrix[offsetR][offsetC] == 1) {
+                      isGhost = true;
+                      ghostColor = activePiece.color;
+                    }
                   }
                 }
               }
@@ -766,7 +797,6 @@ class _BlockBlastViewState extends State<BlockBlastView>
                 child: _buildCellTile(
                   cellColor: cellColor,
                   isGhost: isGhost,
-                  isValidGhost: isValidGhost,
                   ghostColor: ghostColor,
                   isRecentlyPlaced: isRecentlyPlaced,
                   bonusTile: bonusTile,
@@ -778,7 +808,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
             },
           ),
 
-          // Game Over Overlay
+          // Game Over Overlay with Revive / Second Chance!
           if (game.isGameOver)
             Container(
               decoration: BoxDecoration(
@@ -802,7 +832,9 @@ class _BlockBlastViewState extends State<BlockBlastView>
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        game.remainingSeconds <= 0 ? '⏰ WAKTU SHIFT HABIS!' : '🚫 TIDAK ADA KOTAK MUAT!',
+                        game.isTimeAttackMode && game.remainingSeconds <= 0
+                            ? '⏰ WAKTU SHIFT HABIS!'
+                            : '🚫 TIDAK ADA KOTAK MUAT!',
                         style: const TextStyle(
                           color: Color(0xFFFBBF24),
                           fontSize: 12,
@@ -826,6 +858,38 @@ class _BlockBlastViewState extends State<BlockBlastView>
                         ),
                       ),
                       const SizedBox(height: 16),
+
+                      // Second Chance (Revive) Button if available!
+                      if (game.canRevive) ...[
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFF59E0B),
+                            foregroundColor: Colors.black87,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+                          ),
+                          icon: const Icon(Icons.bolt, size: 18),
+                          label: const Text(
+                            '⚡ Kesempatan Kedua (Revive)',
+                            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 13),
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _selectedPieceIndex = null;
+                              _draggingPieceIndex = null;
+                              _hoverRow = null;
+                              _hoverCol = null;
+                              game.reviveGame();
+                            });
+                            HapticFeedback.heavyImpact();
+                            SystemSound.play(SystemSoundType.click);
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF10B981),
@@ -865,7 +929,6 @@ class _BlockBlastViewState extends State<BlockBlastView>
   Widget _buildCellTile({
     required Color? cellColor,
     required bool isGhost,
-    required bool isValidGhost,
     required Color? ghostColor,
     required bool isRecentlyPlaced,
     required BonusTile? bonusTile,
@@ -875,11 +938,26 @@ class _BlockBlastViewState extends State<BlockBlastView>
   }) {
     Color tileBg = const Color(0xFF0F172A);
     Color borderColor = Colors.white.withValues(alpha: _outlineNeonAnim.value);
+    BoxBorder? tileBorder;
+    Gradient? tileGradient;
     Widget? contentWidget;
 
     if (cellColor != null) {
-      tileBg = cellColor;
-      borderColor = Colors.white.withValues(alpha: 0.35);
+      tileGradient = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          cellColor.withValues(alpha: 0.98),
+          cellColor,
+          cellColor.withValues(alpha: 0.80),
+        ],
+      );
+      tileBorder = Border(
+        top: BorderSide(color: Colors.white.withValues(alpha: 0.50), width: 1.5),
+        left: BorderSide(color: Colors.white.withValues(alpha: 0.38), width: 1.5),
+        bottom: BorderSide(color: Colors.black.withValues(alpha: 0.40), width: 1.5),
+        right: BorderSide(color: Colors.black.withValues(alpha: 0.28), width: 1.5),
+      );
       final groceryEmoji = BlockShape.getEmojiForColor(cellColor);
 
       if (bonusTile != null) {
@@ -900,20 +978,14 @@ class _BlockBlastViewState extends State<BlockBlastView>
           style: TextStyle(fontSize: cellSize * 0.52),
         );
       }
-    } else if (isGhost) {
-      if (isValidGhost && ghostColor != null) {
-        tileBg = ghostColor.withValues(alpha: 0.45);
-        borderColor = ghostColor.withValues(alpha: 0.95);
-        final groceryEmoji = BlockShape.getEmojiForColor(ghostColor);
-        contentWidget = Text(
-          groceryEmoji,
-          style: TextStyle(fontSize: cellSize * 0.46),
-        );
-      } else {
-        tileBg = const Color(0xFFEF4444).withValues(alpha: 0.35);
-        borderColor = const Color(0xFFEF4444);
-        contentWidget = const Icon(Icons.close, color: Colors.white70, size: 12);
-      }
+    } else if (isGhost && ghostColor != null) {
+      tileBg = ghostColor.withValues(alpha: 0.40);
+      borderColor = ghostColor.withValues(alpha: 0.90);
+      final groceryEmoji = BlockShape.getEmojiForColor(ghostColor);
+      contentWidget = Text(
+        groceryEmoji,
+        style: TextStyle(fontSize: cellSize * 0.46),
+      );
     } else if (mascot != null) {
       // 🐛 / 🐍 SLITHERING MASCOT MULTI-SEGMENT CRAWLING LIVE!
       tileBg = const Color(0xFF84CC16).withValues(alpha: 0.18);
@@ -952,21 +1024,24 @@ class _BlockBlastViewState extends State<BlockBlastView>
       );
     }
 
+    tileBorder ??= Border.all(
+      color: borderColor,
+      width: (isGhost || mascot != null) ? 1.5 : 1,
+    );
+
     final tile = AnimatedContainer(
       duration: const Duration(milliseconds: 100),
       decoration: BoxDecoration(
-        color: tileBg,
+        color: tileGradient == null ? tileBg : null,
+        gradient: tileGradient,
         borderRadius: BorderRadius.circular(5),
-        border: Border.all(
-          color: borderColor,
-          width: (isGhost || mascot != null) ? 1.5 : 1,
-        ),
+        border: tileBorder,
         boxShadow: cellColor != null
             ? [
                 BoxShadow(
-                  color: cellColor.withValues(alpha: 0.4),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
+                  color: cellColor.withValues(alpha: 0.45),
+                  blurRadius: 5,
+                  offset: const Offset(0, 1.5),
                 ),
               ]
             : (mascot != null)
@@ -976,7 +1051,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
                       blurRadius: 7,
                     ),
                   ]
-                : (isGhost && isValidGhost && ghostColor != null)
+                : (isGhost && ghostColor != null)
                     ? [
                         BoxShadow(
                           color: ghostColor.withValues(alpha: 0.35),
@@ -1003,7 +1078,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
     return tile;
   }
 
-  Widget _buildPieceTray(BlockBlastGame game) {
+  Widget _buildPieceTray(BlockBlastGame game, double cellPx) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: List.generate(3, (index) {
@@ -1036,12 +1111,12 @@ class _BlockBlastViewState extends State<BlockBlastView>
             borderRadius: BorderRadius.circular(12),
             child: Draggable<int>(
               data: index,
-              // Lifted feedback centered directly above finger touch!
+              // Lifted feedback matching EXACT 1:1 scale of board grid!
               feedback: Material(
                 color: Colors.transparent,
                 child: Transform.translate(
-                  offset: Offset(-(piece.cols * 22.0) / 2.0, -(piece.rows * 22.0) - 25.0),
-                  child: _buildShapeWidget(piece, isPreview: true, cellSize: 22.0),
+                  offset: Offset(-(piece.cols * cellPx) / 2.0, -(piece.rows * cellPx) - (cellPx * 2.2)),
+                  child: _buildShapeWidget(piece, isPreview: true, cellSize: cellPx),
                 ),
               ),
               childWhenDragging: Opacity(
@@ -1110,16 +1185,31 @@ class _BlockBlastViewState extends State<BlockBlastView>
             return Container(
               width: cellSize,
               height: cellSize,
-              margin: const EdgeInsets.all(0.8),
+              margin: EdgeInsets.all(cellSize > 20 ? 1.0 : 0.8),
               decoration: isFilled
                   ? BoxDecoration(
-                      color: shape.color,
-                      borderRadius: BorderRadius.circular(3),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          shape.color.withValues(alpha: 0.98),
+                          shape.color,
+                          shape.color.withValues(alpha: 0.80),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(cellSize > 20 ? 5 : 3),
+                      border: Border(
+                        top: BorderSide(color: Colors.white.withValues(alpha: 0.50), width: cellSize > 20 ? 1.5 : 1.0),
+                        left: BorderSide(color: Colors.white.withValues(alpha: 0.38), width: cellSize > 20 ? 1.5 : 1.0),
+                        bottom: BorderSide(color: Colors.black.withValues(alpha: 0.40), width: cellSize > 20 ? 1.5 : 1.0),
+                        right: BorderSide(color: Colors.black.withValues(alpha: 0.28), width: cellSize > 20 ? 1.5 : 1.0),
+                      ),
                       boxShadow: isPreview
                           ? [
                               BoxShadow(
-                                color: shape.color.withValues(alpha: 0.55),
-                                blurRadius: 6,
+                                color: shape.color.withValues(alpha: 0.65),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
                               ),
                             ]
                           : null,
@@ -1129,7 +1219,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
                   ? Center(
                       child: Text(
                         shape.emoji,
-                        style: TextStyle(fontSize: cellSize * 0.65),
+                        style: TextStyle(fontSize: cellSize * (cellSize > 20 ? 0.48 : 0.65)),
                       ),
                     )
                   : null,

@@ -164,7 +164,12 @@ class BlockBlastGame extends ChangeNotifier {
   int expToNextLevel = 300;
   bool hasLevelUp = false;
 
-  // Shift Countdown Timer (Seconds)
+  // Game Mode: Untimed Classic (default like real Block Blast) vs Time Attack
+  bool isTimeAttackMode = false;
+  bool canRevive = true;
+  int comboGraceTurns = 0;
+
+  // Shift Countdown Timer (Seconds, only used in Time Attack Mode)
   static const int initialTimerSeconds = 90;
   int remainingSeconds = initialTimerSeconds;
   Timer? _countdownTimer;
@@ -190,8 +195,20 @@ class BlockBlastGame extends ChangeNotifier {
     return (currentExp / expToNextLevel).clamp(0.0, 1.0);
   }
 
-  BlockBlastGame() {
+  BlockBlastGame({bool timeAttack = false}) {
+    isTimeAttackMode = timeAttack;
     initGame();
+  }
+
+  void toggleTimeMode() {
+    isTimeAttackMode = !isTimeAttackMode;
+    if (isTimeAttackMode) {
+      remainingSeconds = initialTimerSeconds;
+      startTimer();
+    } else {
+      _stopTimer();
+    }
+    notifyListeners();
   }
 
   void initGame() {
@@ -203,12 +220,14 @@ class BlockBlastGame extends ChangeNotifier {
     currentMascot = null;
     score = 0;
     combo = 0;
+    comboGraceTurns = 0;
     level = 1;
     currentExp = 0;
     expToNextLevel = 300;
     hasLevelUp = false;
     remainingSeconds = initialTimerSeconds;
     isGameOver = false;
+    canRevive = true;
     lastBlast = null;
     currentFunFact = segariFunFacts[_random.nextInt(segariFunFacts.length)];
 
@@ -217,8 +236,34 @@ class BlockBlastGame extends ChangeNotifier {
     _loadHighScore();
     _refillPieces();
     _spawnBonusTiles(3);
-    startTimer();
+    if (isTimeAttackMode) {
+      startTimer();
+    }
     _startCameoTimer();
+  }
+
+  /// Second Chance / Revive: Clears central 4x4 area to save high score!
+  void reviveGame() {
+    if (!canRevive) return;
+    canRevive = false;
+    isGameOver = false;
+
+    // Clear center 4x4 area (rows 2-5, cols 2-5)
+    for (int r = 2; r <= 5; r++) {
+      for (int c = 2; c <= 5; c++) {
+        board[r][c] = null;
+      }
+    }
+
+    if (isTimeAttackMode) {
+      remainingSeconds += 30;
+      startTimer();
+    }
+
+    // Ensure pieces can fit
+    _refillPieces();
+    _startCameoTimer();
+    notifyListeners();
   }
 
   void _spawnBonusTiles(int count) {
@@ -459,7 +504,7 @@ class BlockBlastGame extends ChangeNotifier {
   }
 
   void _refillPieces() {
-    currentPieces = List<BlockShape?>.from(BlockShape.getRandomSet(3));
+    currentPieces = List<BlockShape?>.from(BlockShape.getSmartSet(board));
     _checkGameOver();
   }
 
@@ -568,6 +613,7 @@ class BlockBlastGame extends ChangeNotifier {
     final totalLines = rowsToClear.length + colsToClear.length;
     if (totalLines > 0) {
       combo++;
+      comboGraceTurns = 1; // 1 setup move grace period
       final baseBonus = totalLines * 100;
       final comboBonus = combo * 50;
 
@@ -665,7 +711,11 @@ class BlockBlastGame extends ChangeNotifier {
 
       _ensureBonusTiles();
     } else {
-      combo = 0;
+      if (comboGraceTurns > 0) {
+        comboGraceTurns--;
+      } else {
+        combo = 0;
+      }
       lastBlast = null;
     }
 
