@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../widgets/pixel_mascot_painter.dart';
 import 'blast_particles.dart';
+import 'block_blast_audio.dart';
 import 'block_blast_game.dart';
 import 'block_shape.dart';
 
@@ -28,6 +29,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
   int? _hoverRow;
   int? _hoverCol;
   int? _draggingPieceIndex;
+  bool _wasGameOver = false;
   int? _lastHandledBlastTimestamp;
   int _lastCelebratedLevel = 1;
 
@@ -53,6 +55,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
     super.initState();
     _lastCelebratedLevel = widget.game.level;
     widget.game.addListener(_onGameUpdated);
+    BlockBlastAudio.instance.init();
 
     _comboAnimController = AnimationController(
       vsync: this,
@@ -105,7 +108,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
       _lastHandledBlastTimestamp = blast.timestamp;
       _comboAnimController.forward(from: 0.0);
 
-      // Rising tactile & audio cues based on combo progression
+      // Rising tactile & audio cues based on combo progression (Do-Re-Mi-Fa-Sol)
       if (blast.combo >= 4) {
         HapticFeedback.vibrate();
       } else if (blast.combo >= 2) {
@@ -113,7 +116,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
       } else {
         HapticFeedback.mediumImpact();
       }
-      SystemSound.play(SystemSoundType.click);
+      BlockBlastAudio.instance.playClear(blast.combo);
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _triggerParticlesForBlast(blast);
@@ -124,6 +127,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
       _lastCelebratedLevel = widget.game.level;
       widget.game.consumeLevelUp();
       HapticFeedback.vibrate();
+      BlockBlastAudio.instance.playLevelUp();
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final RenderBox? gridBox = _gridKey.currentContext?.findRenderObject() as RenderBox?;
@@ -135,6 +139,14 @@ class _BlockBlastViewState extends State<BlockBlastView>
           );
         }
       });
+    }
+
+    // Sound effect on Game Over
+    if (widget.game.isGameOver && !_wasGameOver) {
+      _wasGameOver = true;
+      BlockBlastAudio.instance.playGameOver();
+    } else if (!widget.game.isGameOver) {
+      _wasGameOver = false;
     }
 
     setState(() {});
@@ -315,6 +327,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
       }
 
       widget.game.placePiece(pieceIndex, row, col);
+      BlockBlastAudio.instance.playPlace();
       HapticFeedback.mediumImpact();
       setState(() {
         _selectedPieceIndex = null;
@@ -333,6 +346,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
     final pts = widget.game.interactMascot(r, c);
     if (pts != null) {
       HapticFeedback.heavyImpact();
+      BlockBlastAudio.instance.playMascot();
       _particleManager.triggerCameoCelebration(
         cellCenter,
         '+$pts ${m.name}! ${m.emoji}',
@@ -535,9 +549,26 @@ class _BlockBlastViewState extends State<BlockBlastView>
                 ),
               ),
 
-              // Actions: Restart, Minimize, Close
+              // Actions: Sound Toggle, Restart, Minimize, Close
               Row(
                 children: [
+                  IconButton(
+                    icon: Icon(
+                      BlockBlastAudio.instance.isMuted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+                      color: BlockBlastAudio.instance.isMuted ? const Color(0xFF64748B) : const Color(0xFF38BDF8),
+                      size: 18,
+                    ),
+                    tooltip: BlockBlastAudio.instance.isMuted ? 'Nyalakan Suara' : 'Bisukan Suara',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () {
+                      setState(() {
+                        BlockBlastAudio.instance.isMuted = !BlockBlastAudio.instance.isMuted;
+                      });
+                      HapticFeedback.selectionClick();
+                    },
+                  ),
+                  const SizedBox(width: 8),
                   IconButton(
                     icon: const Icon(Icons.refresh, color: Color(0xFF94A3B8), size: 18),
                     tooltip: 'Ulang Permainan',
@@ -912,7 +943,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
                                 game.reviveGame();
                               });
                               HapticFeedback.heavyImpact();
-                              SystemSound.play(SystemSoundType.click);
+                              BlockBlastAudio.instance.playRevive();
                             },
                           ),
                           const SizedBox(height: 8),
