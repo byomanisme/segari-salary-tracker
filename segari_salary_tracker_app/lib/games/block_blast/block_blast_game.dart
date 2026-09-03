@@ -131,6 +131,8 @@ class BlockBlastGame extends ChangeNotifier {
   SlitheringMascot? currentMascot;
   Timer? _cameoTimer;
   Timer? _slitherTimer;
+  void Function(String skinId, int r, int c)? onMascotStepped;
+  void Function(String skinId)? onMascotSpawned;
 
   // Dynamic Segari Fun Facts Database
   static const List<String> segariFunFacts = [
@@ -375,6 +377,7 @@ class BlockBlastGame extends ChangeNotifier {
         stepsRemaining: 20,
         bonusPoints: 75 + _random.nextInt(3) * 25, // 75, 100, 125
       );
+      onMascotSpawned?.call(currentMascot!.skinId);
       notifyListeners();
 
       // Start stepping timer (slithers every 380ms)
@@ -435,6 +438,7 @@ class BlockBlastGame extends ChangeNotifier {
       if (m.body.length > 3) {
         m.body.removeLast();
       }
+      onMascotStepped?.call(m.skinId, nextHead.x, nextHead.y);
       notifyListeners();
     } else {
       // Reached a dead end, burrows away peacefully!

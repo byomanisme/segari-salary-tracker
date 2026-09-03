@@ -43,13 +43,13 @@ class AppUpdateInfo {
 }
 
 class UpdateService {
-  static const String currentVersion = '1.3.10';
-  static const int currentBuildNumber = 23;
+  static const String currentVersion = '1.3.11';
+  static const int currentBuildNumber = 24;
 
   // Live remote update endpoint on user domain
   static const String manifestUrl = 'https://lukmanhakim.id/apk/version.json';
   static const String defaultDownloadUrl =
-      'https://lukmanhakim.id/apk/SegariSalaryTracker-v1.3.10.apk';
+      'https://lukmanhakim.id/apk/SegariSalaryTracker-v1.3.11.apk';
 
   static const String _keyLastSeenVersion = 'segari_last_seen_app_version';
   static const String _keyLastSeenBuild = 'segari_last_seen_build_number';
@@ -57,11 +57,10 @@ class UpdateService {
 
   // Latest Release Notes for current version (shown on first launch after update)
   static final List<String> currentWhatsNewList = [
-    '👑 Rombak Dashboard Atas (Arcade HUD): Desain bagian atas kotak kosong dirombak total menjadi 3 kartu konsol modern (Skor Neon, Level & EXP Terintegrasi, Rekor Terbaik), plus bilah tombol kapsul kaca yang sangat rapi dan estetik.',
-    '🎵 Efek Suara Interaktif Menarik: Suara snap balok terpasang, marimba bertingkat kombo, mega kombo arpeggio, suara maskot ulat/ular, revive, dan game over.',
-    '🔊 Tombol Pengatur Suara: Ikon speaker di header atas untuk menyalakan atau membisukan suara secara instan.',
-    '🎯 Drag & Drop Laser-Presisi: Titik tumpu jari (pointer drag anchor) dan bayangan papan selaras 100% tanpa gesekan atau drift.',
-    '📐 Bebas Tertutup Teks: Kotak papan bawah tidak lagi tertutupi oleh tips & trick, kini berdiri kokoh dan proporsional di semua layar.',
+    '🐛🐍 Suara Unik Ulat & Ular di Kotak Kosong: Efek suara bloop kartun lucu saat ulat sayur melangkah, dan desis halus berirama saat ular melata di papan, plus lonceng saat maskot muncul!',
+    '🧩 4 Variasi Suara Pasang Balok: Setiap balok memiliki variasi bunyi taktil (snap kayu, thud tebal, mineral kaca, klik padat) serta suara saat balok diangkat (pick-up) dan gagal letak.',
+    '🚀 Sistem Audio Pool 8-Channel (RAM Cache): Bebas lag, seluruh efek suara dimuat ke memori untuk menjamin 100% suara selalu muncul tanpa pernah drop.',
+    '👑 Rombak Dashboard Atas (Arcade HUD): Konsol 3 kartu statistik modern (Skor Neon, Level & EXP Menyatu, Rekor Terbaik) dan bilah tombol kapsul rapi.',
   ];
 
   /// Check if the user just updated the app to show "What's New"

@@ -57,6 +57,13 @@ class _BlockBlastViewState extends State<BlockBlastView>
     widget.game.addListener(_onGameUpdated);
     BlockBlastAudio.instance.init();
 
+    widget.game.onMascotSpawned = (skinId) {
+      BlockBlastAudio.instance.playMascotSpawn();
+    };
+    widget.game.onMascotStepped = (skinId, r, c) {
+      BlockBlastAudio.instance.playMascotStep(skinId);
+    };
+
     _comboAnimController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
@@ -94,6 +101,8 @@ class _BlockBlastViewState extends State<BlockBlastView>
   @override
   void dispose() {
     widget.game.removeListener(_onGameUpdated);
+    widget.game.onMascotSpawned = null;
+    widget.game.onMascotStepped = null;
     _comboAnimController.dispose();
     _scoreBounceAnimController.dispose();
     _timerPulseController.dispose();
@@ -264,6 +273,8 @@ class _BlockBlastViewState extends State<BlockBlastView>
   void _handleDragEnd(int pieceIndex, BlockShape piece) {
     if (_hoverRow != null && _hoverCol != null) {
       _handlePlacement(pieceIndex, _hoverRow!, _hoverCol!);
+    } else {
+      BlockBlastAudio.instance.playInvalid();
     }
     setState(() {
       _draggingPieceIndex = null;
@@ -337,6 +348,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
       });
     } else {
       HapticFeedback.vibrate();
+      BlockBlastAudio.instance.playInvalid();
     }
   }
 
@@ -1347,6 +1359,7 @@ class _BlockBlastViewState extends State<BlockBlastView>
                   _selectedPieceIndex = index;
                 });
                 HapticFeedback.lightImpact();
+                BlockBlastAudio.instance.playPickup();
               },
               onDragUpdate: (details) {
                 _handleDragUpdate(details.globalPosition, piece, cellPx);
