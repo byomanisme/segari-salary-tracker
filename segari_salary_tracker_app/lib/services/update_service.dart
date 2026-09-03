@@ -98,18 +98,6 @@ class UpdateService {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      // If automatic check on homescreen, check if user snoozed it until tomorrow
-      if (!isManualCheck) {
-        final snoozeStr = prefs.getString(_keySnoozeUntil);
-        if (snoozeStr != null) {
-          final snoozeDate = DateTime.tryParse(snoozeStr);
-          if (snoozeDate != null && DateTime.now().isBefore(snoozeDate)) {
-            // Still in snooze period (will prompt tomorrow)
-            return null;
-          }
-        }
-      }
-
       // Fetch live version manifest from lukmanhakim.id with cache-buster
       final cacheBusterUrl =
           '$manifestUrl?t=${DateTime.now().millisecondsSinceEpoch}';
@@ -125,8 +113,20 @@ class UpdateService {
         final data = json.decode(response.body) as Map<String, dynamic>;
         final updateInfo = AppUpdateInfo.fromJson(data);
 
-        // If remote build is higher, prompt update!
+        // If remote build is higher, check snooze and prompt update!
         if (updateInfo.buildNumber > currentBuildNumber) {
+          // If automatic check on homescreen, check if user snoozed this specific build
+          if (!isManualCheck) {
+            final snoozedBuild = prefs.getInt('segari_update_snoozed_build') ?? 0;
+            final snoozeStr = prefs.getString(_keySnoozeUntil);
+            if (snoozedBuild == updateInfo.buildNumber && snoozeStr != null) {
+              final snoozeDate = DateTime.tryParse(snoozeStr);
+              if (snoozeDate != null && DateTime.now().isBefore(snoozeDate)) {
+                // Still in snooze period for THIS build
+                return null;
+              }
+            }
+          }
           return updateInfo;
         }
       }
@@ -139,11 +139,14 @@ class UpdateService {
   }
 
   /// Snooze update reminder until tomorrow
-  Future<void> snoozeUpdateForTomorrow() async {
+  Future<void> snoozeUpdateForTomorrow({int? buildNumber}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final tomorrow = DateTime.now().add(const Duration(days: 1));
       await prefs.setString(_keySnoozeUntil, tomorrow.toIso8601String());
+      if (buildNumber != null) {
+        await prefs.setInt('segari_update_snoozed_build', buildNumber);
+      }
     } catch (e) {
       debugPrint('snoozeUpdateForTomorrow error: $e');
     }

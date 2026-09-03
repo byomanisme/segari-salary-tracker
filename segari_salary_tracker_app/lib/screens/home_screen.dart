@@ -121,7 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (_) => UpdateAvailableDialog(
           updateInfo: updateInfo,
           onSnooze: () {
-            _updateService.snoozeUpdateForTomorrow();
+            _updateService.snoozeUpdateForTomorrow(buildNumber: updateInfo.buildNumber);
           },
           onUpdate: () {
             showDialog(
